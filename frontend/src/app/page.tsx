@@ -1,0 +1,56 @@
+import React from 'react';
+import Link from 'next/link';
+
+export default function HomePage() {
+  return (
+    <main className="min-h-screen relative overflow-hidden flex flex-col items-center justify-center p-6 bg-background">
+      {/* Background radial gradients */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl pointer-events-none animate-pulse-slow" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/15 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="relative z-10 max-w-3xl w-full text-center space-y-8">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary-light text-xs font-semibold tracking-wider uppercase mb-2">
+          <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
+          Research Platform 2.0
+        </div>
+
+        <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-400">
+          Adaptive AI Reading Research Platform
+        </h1>
+
+        <p className="text-lg text-slate-400 max-w-xl mx-auto leading-relaxed">
+          State-of-the-art experiment orchestration and real-time reading comprehension analytics powered by adaptive AI interventions.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 max-w-2xl mx-auto">
+          <Link
+            href="/participant"
+            className="group relative glass-panel p-8 flex flex-col items-start text-left border border-slate-800 hover:border-accent/50 transition-all duration-300 hover:shadow-2xl hover:shadow-accent/10 hover:-translate-y-1"
+          >
+            <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center text-accent mb-4 group-hover:scale-110 transition-transform">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2 group-hover:text-accent transition-colors">Participant Portal</h3>
+            <p className="text-sm text-slate-400">Enroll in reading experiments, complete comprehension checks, and interact with adaptive feedback.</p>
+          </Link>
+
+          <Link
+            href="/login"
+            className="group relative glass-panel p-8 flex flex-col items-start text-left border border-slate-800 hover:border-primary/50 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1"
+          >
+            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2 group-hover:text-primary transition-colors">Admin & Researcher CMS</h3>
+            <p className="text-sm text-slate-400">Design study wizards, manage experimental conditions, configure AI prompts, and export analytics.</p>
+          </Link>
+        </div>
+      </div>
+    </main>
+  );
+}
