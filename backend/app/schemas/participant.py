@@ -17,7 +17,12 @@ class ParticipantRegisterResponse(BaseModel):
 
 
 class ParticipantStatusResponse(BaseModel):
-    participant_id: int
+    participant_id: Any
     participant_code: str
     status: str
     created_at: str
+    experiment_id: Optional[Any] = None
+    session_id: Optional[Any] = None
+    last_section_id: Optional[str] = None
+    elapsed_seconds: Optional[int] = 0
+

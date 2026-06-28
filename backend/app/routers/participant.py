@@ -13,5 +13,11 @@ async def register_participant(req: schemas.ParticipantRegisterRequest, db: Asyn
 
 
 @router.get("/status/{participant_id}", response_model=schemas.ParticipantStatusResponse)
-async def get_participant_status(participant_id: int, db: AsyncSession = Depends(get_db)):
+async def get_participant_status(participant_id: str, db: AsyncSession = Depends(get_db)):
     return await service.get_participant_status(participant_id, db)
+
+
+@router.post("/complete/{participant_id}")
+async def complete_participant_session(participant_id: str, db: AsyncSession = Depends(get_db)):
+    return await service.complete_participant_session(participant_id, db)
+

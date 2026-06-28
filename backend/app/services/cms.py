@@ -5,19 +5,54 @@ from sqlalchemy import select
 from fastapi import HTTPException
 import datetime
 
-def format_exp(exp: Experiment, latest_version: ExperimentVersion = None) -> schemas.ExperimentResponse:
+def format_exp(exp: Experiment, latest_version: ExperimentVersion = None, conditions: list = None) -> schemas.ExperimentResponse:
     v_num = latest_version.version_number if latest_version else 1
     status = latest_version.status if latest_version else "draft"
     v_id = latest_version.id if latest_version else 1
     
+    if not conditions:
+        conditions = [
+            {
+                "id": "cond_1",
+                "experiment_version_id": str(v_id),
+                "name": "Experimental AI Cohort",
+                "ai_model": "llama-3.3-70b-versatile",
+                "reading_sections": [
+                    {
+                        "id": "sec_1",
+                        "condition_id": "cond_1",
+                        "title": "Section 1: Foundations of Neuro-Symbolic AI",
+                        "content": "",
+                        "order": 1,
+                        "paragraphs": [
+                            {"id": "p_1", "section_id": "sec_1", "content": "Modern artificial intelligence combines neural pattern recognition with symbolic logic structures to enable verifiable reasoning.", "order": 1, "word_count": 17},
+                            {"id": "p_2", "section_id": "sec_1", "content": "As large language models scale across hundreds of billions of parameters, emergent cognitive properties begin to manifest across domain boundaries.", "order": 2, "word_count": 20},
+                        ],
+                    },
+                    {
+                        "id": "sec_2",
+                        "condition_id": "cond_1",
+                        "title": "Section 2: Cognitive Scaffolding Mechanics",
+                        "content": "",
+                        "order": 2,
+                        "paragraphs": [
+                            {"id": "p_3", "section_id": "sec_2", "content": "When learners struggle with dense academic syntax, adaptive intervention prompts provide contextual hints without revealing direct answers.", "order": 1, "word_count": 18},
+                        ],
+                    },
+                ],
+            }
+        ]
+
     v_detail = schemas.VersionDetail(
         id=str(v_id),
         experiment_id=str(exp.id),
         version_number=v_num,
         status=status,
         config={},
+        conditions=conditions,
         created_at=exp.created_at.isoformat() if exp.created_at else datetime.datetime.now(datetime.timezone.utc).isoformat()
     )
+
     
     return schemas.ExperimentResponse(
         id=str(exp.id),

@@ -1,42 +1,48 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Any, Dict
 from datetime import datetime
 
 class QuizOption(BaseModel):
-    id: int
+    id: Any
     text: str
 
 class QuizQuestion(BaseModel):
-    id: int
-    type: str # MCQ, LIKERT, HELPFULNESS
+    id: Any
+    type: str # MCQ, LIKERT, HELPFULNESS, etc.
     text: str
     options: Optional[List[QuizOption]] = None
     required: bool = True
 
 class CurrentQuizResponse(BaseModel):
-    section_id: int
+    section_id: Any
     questions: List[QuizQuestion]
 
 class Answer(BaseModel):
-    question_id: int
-    value: str
+    question_id: Any
+    value: Any
 
 class QuizSubmitRequest(BaseModel):
-    session_id: int
-    section_id: int
-    answers: List[Answer]
+    session_id: Any
+    section_id: Optional[Any] = None
+    quiz_id: Optional[Any] = None
+    answers: Any # Can be Dict[str, Any] or List[Answer]
+    time_spent_seconds: Optional[int] = 0
 
 class QuizSubmitResponse(BaseModel):
-    success: bool
+    success: bool = True
+    score: Optional[int] = 100
+    max_score: Optional[int] = 100
+    passed: Optional[bool] = True
+    feedback: Optional[Dict[str, str]] = None
     validation_errors: Optional[List[str]] = None
 
 class QuizHistoryItem(BaseModel):
-    session_id: int
-    section_id: int
-    answers: List[Answer]
+    session_id: Any
+    section_id: Any
+    answers: Any
     timestamp: datetime
 
 class AdminQuizCreate(BaseModel):
-    experiment_id: int
-    section_id: int
+    experiment_id: Any
+    section_id: Any
     questions: List[QuizQuestion]

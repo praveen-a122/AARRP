@@ -8,8 +8,9 @@ from app.database.database import get_db
 router = APIRouter(tags=["Quiz Engine"])
 
 @router.get("/api/quiz/current", response_model=schemas.CurrentQuizResponse)
-async def get_current_quiz(session_id: int, section_id: int, db: AsyncSession = Depends(get_db)):
+async def get_current_quiz(session_id: str, section_id: str, db: AsyncSession = Depends(get_db)):
     return await service.get_current_quiz(session_id, section_id, db)
+
 
 @router.post("/api/quiz/submit", response_model=schemas.QuizSubmitResponse)
 async def submit_quiz(req: schemas.QuizSubmitRequest, db: AsyncSession = Depends(get_db)):

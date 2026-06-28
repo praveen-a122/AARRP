@@ -7,6 +7,13 @@ from app.database.database import get_db
 
 router = APIRouter(tags=["Analytics & Reporting"])
 
+@router.post("/api/analytics/telemetry/batch")
+async def ingest_telemetry_batch(batch: schemas.TelemetryBatch, db: AsyncSession = Depends(get_db)):
+    """Receive and persist a batch of reading telemetry events from the frontend."""
+    return await service.save_telemetry_batch(batch, db)
+
+
+
 @router.get("/api/analytics/dashboard", response_model=schemas.AnalyticsDashboard)
 async def get_analytics_dashboard(db: AsyncSession = Depends(get_db)):
     return await service.get_dashboard_analytics(db)

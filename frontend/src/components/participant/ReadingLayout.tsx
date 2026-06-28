@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useReadingSession } from '@/hooks/useReadingSession';
 import { ReadingHeader } from '@/components/participant/ReadingHeader';
@@ -10,11 +10,12 @@ import { SlideRenderer } from '@/components/participant/SlideRenderer';
 import { ReadingControls } from '@/components/participant/ReadingControls';
 import { SessionRecoveryDialog } from '@/components/participant/SessionRecoveryDialog';
 import { ReadingCompleteDialog } from '@/components/participant/ReadingCompleteDialog';
-import { TelemetryProvider } from '@/components/providers/TelemetryProvider';
+import { TelemetryProvider, useTelemetry } from '@/components/providers/TelemetryProvider';
 import { AIInterventionManager } from '@/components/participant/AIInterventionManager';
 import { Spinner } from '@/components/ui/Spinner';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { apiClient } from '@/lib/apiClient';
 import type { Paragraph } from '@/types/api';
 
 export interface ReadingLayoutProps {
@@ -22,7 +23,10 @@ export interface ReadingLayoutProps {
   initialSectionId?: string;
 }
 
-export const ReadingLayout: React.FC<ReadingLayoutProps> = ({ participantCode, initialSectionId }) => {
+// ─── Inner component ────────────────────────────────────────────────────────
+// Separated so it can safely call useTelemetry(), which requires
+// being rendered *inside* <TelemetryProvider>.
+const ReadingLayoutInner: React.FC<ReadingLayoutProps> = ({ participantCode, initialSectionId }) => {
   const router = useRouter();
   const {
     data,
@@ -37,12 +41,21 @@ export const ReadingLayout: React.FC<ReadingLayoutProps> = ({ participantCode, i
     fontSize,
     setFontSize,
     elapsedSeconds,
+    paragraphDwellTimes,
+    dwellTimesRef,
+    backtrackCount,
+    paragraphVisits,
+    flushAnalyticsRef,
+    cursorIdleSeconds,
+    cursorIdleEpisodes,
+    longestIdleDuration,
     showRecoveryDialog,
     setShowRecoveryDialog,
     showCompleteDialog,
     setShowCompleteDialog,
     handleNextSlide,
     handlePrevSlide,
+    restartSession,
   } = useReadingSession(participantCode, initialSectionId);
 
   // AI scaffolding modal state
@@ -50,6 +63,62 @@ export const ReadingLayout: React.FC<ReadingLayoutProps> = ({ participantCode, i
   const [aiTargetText, setAiTargetText] = useState('');
   const [aiResponse, setAiResponse] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
+
+  const { logEvent } = useTelemetry();
+
+  // Prevent the initial mount from being logged as a navigation event
+  const firstRender = useRef(true);
+
+  // Flush dwell + backtrack + visit analytics to backend on every slide/section transition.
+  // Uses ref values (always-current) so the closure never reads stale state.
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    const currentP = paragraphs[currentSlideIdx];
+    if (!currentP) return;
+
+    flushAnalyticsRef.current?.(logEvent, {
+      paragraphId: currentP.id,
+      sectionId: activeSectionId,
+      slideIndex: currentSlideIdx,
+    });
+  // logEvent and refs are stable; only re-run on actual navigation
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSlideIdx, activeSectionId]);
+
+  // Flush on tab hide or browser close — captures the last dwell seconds
+  // even if the participant never pressed Next.
+  useEffect(() => {
+    const flushOnHide = () => {
+      const currentP = paragraphs[currentSlideIdx];
+      flushAnalyticsRef.current?.(logEvent, {
+        paragraphId: currentP?.id,
+        sectionId: activeSectionId,
+        slideIndex: currentSlideIdx,
+      });
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flushOnHide();
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('beforeunload', flushOnHide);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('beforeunload', flushOnHide);
+    };
+  // Re-attach whenever the active paragraph/section changes so flushOnHide
+  // always captures the right context without a stale closure.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSlideIdx, activeSectionId]);
+
+  // Derived: reread count per paragraph (total visits minus the first)
+  const paragraphRereadCounts = Object.fromEntries(
+    Object.entries(paragraphVisits).map(([id, visits]) => [id, Math.max(0, visits - 1)])
+  );
 
   if (isLoading) {
     return (
@@ -83,26 +152,47 @@ export const ReadingLayout: React.FC<ReadingLayoutProps> = ({ participantCode, i
   const expTitle = data.experiment.title || 'Adaptive AI Reading Research';
   const secIndex = sections.findIndex((s) => s.id === activeSection?.id);
 
-  const handleRequestAIHelp = (paragraph: Paragraph, queryText?: string) => {
+  const handleRequestAIHelp = async (paragraph: Paragraph, queryText?: string) => {
     setAiTargetText(queryText || paragraph.content);
     setAiResponse('');
     setAiModalOpen(true);
     setAiLoading(true);
 
-    // Simulate AI cognitive hint scaffolding latency
-    setTimeout(() => {
-      setAiLoading(false);
+    // Build a telemetry snapshot for THIS paragraph only
+    const pid = paragraph.id || '';
+    const telemetrySnapshot = {
+      dwell_seconds:        dwellTimesRef.current[pid]         ?? null,
+      visit_count:          paragraphVisits[pid]               ?? null,
+      backtrack_count:      backtrackCount,
+      cursor_idle_seconds:  cursorIdleSeconds,
+      cursor_idle_episodes: cursorIdleEpisodes,
+      longest_idle_s:       longestIdleDuration,
+      word_count:           paragraph.word_count               ?? null,
+    };
+
+    try {
+      const res = await apiClient.post<{ response_text: string }>('/api/ai/respond', {
+        session_id:     1,           // resolved from real session once auth is wired
+        participant_id: 1,
+        paragraph_id:   pid,
+        context:        queryText || paragraph.content,
+        telemetry:      telemetrySnapshot,
+      });
+      setAiResponse(res.response_text);
+    } catch {
+      // Graceful degradation: show a static fallback hint
       setAiResponse(
         queryText
-          ? `Adaptive Hint for "${queryText}": Consider how this concept links back to the foundational principles introduced in previous modules. Notice the cause-and-effect relationship being described.`
-          : `Scaffolding Summary: This paragraph introduces key mechanisms. Pay special attention to the operational vocabulary and how it relates to the overall system framework.`
+          ? `Hint for "${queryText}": Consider how this concept connects to what you've read before. Focus on the key relationship described.`
+          : `This paragraph introduces a key mechanism. Pay attention to how its components interact with each other.`
       );
-    }, 1200);
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   return (
-    <TelemetryProvider>
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-primary/30 selection:text-white">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-primary/30 selection:text-white">
       {/* Top Header */}
       <ReadingHeader
         experimentTitle={expTitle}
@@ -149,10 +239,10 @@ export const ReadingLayout: React.FC<ReadingLayoutProps> = ({ participantCode, i
         onNext={handleNextSlide}
         onPrev={handlePrevSlide}
         isFirstSlide={currentSlideIdx === 0 && secIndex <= 0}
-        isLastSlide={currentSlideIdx === paragraphs.length - 1 && secIndex === sections.length - 1}
+        isLastSlide={currentSlideIdx === paragraphs.length - 1}
         fontSize={fontSize}
         onFontSizeChange={setFontSize}
-        onExit={() => router.push('/login')}
+        onExit={() => router.push('/participant')}
       />
 
       {/* AI Intervention Scaffolding Modal */}
@@ -201,7 +291,7 @@ export const ReadingLayout: React.FC<ReadingLayoutProps> = ({ participantCode, i
         lastSectionTitle={activeSection?.title}
         elapsedSeconds={elapsedSeconds}
         onResume={() => setShowRecoveryDialog(false)}
-        onRestart={() => setShowRecoveryDialog(false)}
+        onRestart={restartSession}
       />
 
       {/* Reading Complete Dialog */}
@@ -213,11 +303,18 @@ export const ReadingLayout: React.FC<ReadingLayoutProps> = ({ participantCode, i
           setShowCompleteDialog(false);
           router.push(`/participant/${participantCode}/${activeSection?.id || 'sec_1'}/quiz`);
         }}
-        onReturnHome={() => router.push('/login')}
+        onReturnHome={() => router.push('/participant')}
       />
 
       <AIInterventionManager participantId={participantCode} sessionId={`sess_${participantCode}`} />
-      </div>
-    </TelemetryProvider>
+    </div>
   );
 };
+
+// ─── Public export ───────────────────────────────────────────────────────────
+// Thin shell: owns TelemetryProvider so ReadingLayoutInner can call useTelemetry()
+export const ReadingLayout: React.FC<ReadingLayoutProps> = (props) => (
+  <TelemetryProvider>
+    <ReadingLayoutInner {...props} />
+  </TelemetryProvider>
+);

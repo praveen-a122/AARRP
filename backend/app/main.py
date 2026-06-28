@@ -40,12 +40,14 @@ app.include_router(participant_router)
 @app.on_event("startup")
 async def startup_event():
     logger.info("Starting AARRP FastAPI Server...")
-    # Pre-warm the connection pool — must use async_sessionmaker, not engine.begin()
-    from app.database.database import AsyncSessionLocal
+    # Use engine.connect() directly — avoids the sync initialization path that
+    # doesn't honour connect_args with NullPool + PgBouncer.
+    from app.database.database import engine
     from sqlalchemy import text
-    async with AsyncSessionLocal() as session:
-        await session.execute(text("SELECT 1"))
-    logger.info("Connection pool pre-warmed.")
+    async with engine.connect() as conn:
+        await conn.execute(text("SELECT 1"))
+    logger.info("DB connection verified. Server ready.")
+
 
 @app.get("/health")
 async def health_check():

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ParagraphRenderer } from '@/components/participant/ParagraphRenderer';
 import type { Paragraph } from '@/types/api';
 
@@ -27,6 +27,13 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({
 
   const safeIdx = Math.max(0, Math.min(currentSlideIndex, paragraphs.length - 1));
   const activeParagraph = paragraphs[safeIdx];
+
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
+  }, [currentSlideIndex]);
 
   return (
     <div className="space-y-6 animate-fade-in max-w-3xl mx-auto py-6">

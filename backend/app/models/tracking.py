@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, func, Float, Text
 from sqlalchemy.orm import relationship
 from app.database.base import Base
+import json
 
 class ReadingEvent(Base):
     __tablename__ = "reading_events"
@@ -66,3 +67,31 @@ class AIFeedback(Base):
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
     intervention = relationship("AIIntervention", back_populates="feedback")
+
+
+class TelemetryEvent(Base):
+    """Persists one analytics snapshot per navigation event.
+
+    Each row represents the moment a participant *leaves* a paragraph.
+    Typed columns hold per-paragraph metrics only (not cumulative session
+    history), making downstream SQL / pandas aggregation straightforward.
+    """
+    __tablename__ = "telemetry_events"
+
+    id                   = Column(Integer, primary_key=True, index=True)
+    event_type           = Column(String(64), nullable=False)           # 'navigation' | etc.
+    participant_id       = Column(String(128), nullable=True, index=True)
+    session_id           = Column(String(128), nullable=True, index=True)
+    section_id           = Column(String(128), nullable=True)
+    paragraph_id         = Column(String(128), nullable=True, index=True)  # str: 'p_1' style
+
+    # Per-paragraph metrics for the paragraph being left
+    dwell_time_s         = Column(Integer, nullable=True)    # seconds on this paragraph
+    visit_count          = Column(Integer, nullable=True)    # total visits (rereads = visit_count - 1)
+    backtrack_count      = Column(Integer, nullable=True)    # session total at flush time
+    cursor_idle_seconds  = Column(Integer, nullable=True)    # cumulative idle on this paragraph
+    cursor_idle_episodes = Column(Integer, nullable=True)
+    longest_idle_s       = Column(Integer, nullable=True)
+
+    raw_metadata         = Column(Text, nullable=True)       # full JSON for debugging
+    timestamp            = Column(DateTime(timezone=True), server_default=func.now())

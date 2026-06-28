@@ -18,8 +18,10 @@ class VersionDetail(BaseModel):
     version_number: int
     status: str
     config: dict = {}
+    conditions: Optional[List[Any]] = None
     created_at: Optional[str] = None
     published_at: Optional[str] = None
+
 
 class ExperimentResponse(BaseModel):
     id: str
