@@ -14,8 +14,8 @@ export default function HomePage() {
           Research Platform 2.0
         </div>
 
-        <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-400">
-          Adaptive AI Reading Research Platform
+        <h1 className="text-red-500 text-9xl font-extrabold tracking-tight">
+          THIS IS THE CORRECT PAGE
         </h1>
 
         <p className="text-lg text-slate-400 max-w-xl mx-auto leading-relaxed">
