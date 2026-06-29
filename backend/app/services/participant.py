@@ -9,12 +9,16 @@ from datetime import datetime, timezone
 
 async def register_participant(req: schemas.ParticipantRegisterRequest, db: AsyncSession) -> schemas.ParticipantRegisterResponse:
     custom_code = None
+    demographics_json = None
     if req.demographics and isinstance(req.demographics, dict):
         custom_code = req.demographics.get("participant_code")
+        import json
+        demographics_json = json.dumps(req.demographics)
 
     new_participant = Participant(
         version_id=req.version_id,
         condition_id=req.condition_id,
+        demographics=demographics_json,
         status="enrolled"
     )
     if custom_code:

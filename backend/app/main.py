@@ -21,10 +21,32 @@ app = FastAPI(
     description="Backend for the Adaptive AI Reading Research Platform"
 )
 
-# CORS Configuration 
+# CORS Configuration — allow all Vercel preview/production domains + local dev
+cors_origins = [
+    settings.frontend_url,                        # from FRONTEND_URL env var
+    "https://aarrp.vercel.app",                    # primary Vercel domain
+    "https://aarrp-git-main-pforveen.vercel.app",  # git-branch preview
+    "http://localhost:3000",                        # local dev
+]
+# Also allow any *.vercel.app preview deployment URL
+import re
+_vercel_pattern = re.compile(r"https://aarrp[a-z0-9-]*\.vercel\.app")
+
+from starlette.middleware.cors import CORSMiddleware as _CM
+from starlette.types import ASGIApp, Receive, Scope, Send
+
+class FlexibleCORSMiddleware(_CM):
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        if scope["type"] in ("http", "websocket"):
+            headers = dict(scope.get("headers", []))
+            origin = headers.get(b"origin", b"").decode()
+            if origin and _vercel_pattern.match(origin) and origin not in self.allow_origins:
+                self.allow_origins.append(origin)
+        await super().__call__(scope, receive, send)
+
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[settings.frontend_url],
+    FlexibleCORSMiddleware,
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -40,12 +62,16 @@ app.include_router(participant_router)
 @app.on_event("startup")
 async def startup_event():
     logger.info("Starting AARRP FastAPI Server...")
-    # Use engine.connect() directly — avoids the sync initialization path that
+    # Use engine.begin() directly — avoids the sync initialization path that
     # doesn't honour connect_args with NullPool + PgBouncer.
     from app.database.database import engine
     from sqlalchemy import text
-    async with engine.connect() as conn:
+    async with engine.begin() as conn:
         await conn.execute(text("SELECT 1"))
+        try:
+            await conn.execute(text("ALTER TABLE participants ADD COLUMN IF NOT EXISTS demographics TEXT;"))
+        except Exception as e:
+            logger.warning(f"Could not auto-add demographics column: {e}")
     logger.info("DB connection verified. Server ready.")
 
 

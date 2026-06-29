@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, func, Sequence, text
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, func, Sequence, text, Text
 from sqlalchemy.orm import relationship
 from app.database.base import Base
 
@@ -10,6 +10,7 @@ class Participant(Base):
     participant_code = Column(String(10), unique=True, index=True, server_default=text("'P' || lpad(nextval('participant_id_seq')::text, 6, '0')"))
     version_id = Column(Integer, ForeignKey("experiment_versions.id", ondelete="RESTRICT"))
     condition_id = Column(Integer, ForeignKey("conditions.id", ondelete="RESTRICT"))
+    demographics = Column(Text, nullable=True)  # JSON string: {name, age, gender, branch, region, language}
     status = Column(String, nullable=False, default="enrolled")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
