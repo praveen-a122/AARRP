@@ -7,6 +7,8 @@ participant_seq = Sequence('participant_id_seq', start=1, increment=1)
 class Participant(Base):
     __tablename__ = "participants"
     id = Column(Integer, primary_key=True, index=True)
+    participant_id = Column(String(64), unique=True, index=True, nullable=True) # e.g. P000024
+    name = Column(String(128), nullable=True)
     participant_code = Column(String(10), unique=True, index=True, server_default=text("'P' || lpad(nextval('participant_id_seq')::text, 6, '0')"))
     version_id = Column(Integer, ForeignKey("experiment_versions.id", ondelete="RESTRICT"))
     condition_id = Column(Integer, ForeignKey("conditions.id", ondelete="RESTRICT"))

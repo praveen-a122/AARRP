@@ -31,6 +31,7 @@ class TelemetryEventIn(BaseModel):
     """
     event_type: str                           # 'navigation' | 'scroll' | etc.
     participant_id: Optional[str] = None
+    participant_name: Optional[str] = None
     session_id: Optional[str] = None
     section_id: Optional[str] = None
     paragraph_id: Optional[str] = None       # str to match frontend 'p_1' style IDs

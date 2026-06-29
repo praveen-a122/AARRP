@@ -81,6 +81,7 @@ class TelemetryEvent(Base):
     id                   = Column(Integer, primary_key=True, index=True)
     event_type           = Column(String(64), nullable=False)           # 'navigation' | etc.
     participant_id       = Column(String(128), nullable=True, index=True)
+    participant_name     = Column(String(128), nullable=True)
     session_id           = Column(String(128), nullable=True, index=True)
     section_id           = Column(String(128), nullable=True)
     paragraph_id         = Column(String(128), nullable=True, index=True)  # str: 'p_1' style

@@ -274,14 +274,26 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
   useEffect(() => { paraStatsRef.current = paraStats; }, [paraStats]);
   useEffect(() => { interventionLogRef.current = interventionLog; }, [interventionLog]);
 
+  // Helper to retrieve participant name from localStorage
+  const getParticipantName = useCallback(() => {
+    if (typeof window === 'undefined') return '';
+    try {
+      const demoStr = localStorage.getItem(`aarrp_demographics_${participantCode}`);
+      if (demoStr) return JSON.parse(demoStr).name || '';
+    } catch (e) {}
+    return '';
+  }, [participantCode]);
+
   // ─── SUPABASE SYNC: send telemetry events to the backend ──────────────────
   const flushTelemetryToBackend = useCallback(async (eventType: string, extra?: Record<string, unknown>) => {
     const pid = activeParaIdRef.current;
     const stats = pid ? paraStatsRef.current[pid] : null;
+    const pName = getParticipantName();
     const payload = {
       events: [{
         event_type: eventType,
         participant_id: participantCode,
+        participant_name: pName,
         session_id: `sess_${participantCode}`,
         section_id: 'sec_1',
         paragraph_id: pid || undefined,
@@ -619,10 +631,12 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
 
   // ─── SUPABASE SYNC: Full session save on finish ────────────────────────────
   const saveSessionToSupabase = useCallback(async (diffRatings: Record<string, number>, quizAnswers: Record<string, number>) => {
+    const pName = getParticipantName();
     const fullPayload = {
       events: V1_PARAGRAPHS.map(p => ({
         event_type: 'session_complete',
         participant_id: participantCode,
+        participant_name: pName,
         session_id: `sess_${participantCode}`,
         section_id: 'sec_1',
         paragraph_id: p.id,

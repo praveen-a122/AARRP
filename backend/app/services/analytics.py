@@ -60,6 +60,7 @@ async def save_telemetry_batch(
         row = TelemetryEvent(
             event_type           = ev.event_type,
             participant_id       = ev.participant_id,
+            participant_name     = ev.participant_name or meta.get("participant_name"),
             session_id           = ev.session_id,
             section_id           = ev.section_id,
             paragraph_id         = ev.paragraph_id,

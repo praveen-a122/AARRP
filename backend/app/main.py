@@ -70,8 +70,12 @@ async def startup_event():
         await conn.execute(text("SELECT 1"))
         try:
             await conn.execute(text("ALTER TABLE participants ADD COLUMN IF NOT EXISTS demographics TEXT;"))
+            await conn.execute(text("ALTER TABLE participants ADD COLUMN IF NOT EXISTS name VARCHAR(128);"))
+            await conn.execute(text("ALTER TABLE participants ADD COLUMN IF NOT EXISTS participant_id VARCHAR(64);"))
+            await conn.execute(text("ALTER TABLE telemetry_events ADD COLUMN IF NOT EXISTS participant_name VARCHAR(128);"))
+            await conn.execute(text("UPDATE participants SET participant_id = participant_code WHERE participant_id IS NULL AND participant_code IS NOT NULL;"))
         except Exception as e:
-            logger.warning(f"Could not auto-add demographics column: {e}")
+            logger.warning(f"Could not auto-add columns: {e}")
     logger.info("DB connection verified. Server ready.")
 
 

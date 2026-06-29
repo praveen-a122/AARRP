@@ -10,8 +10,10 @@ from datetime import datetime, timezone
 async def register_participant(req: schemas.ParticipantRegisterRequest, db: AsyncSession) -> schemas.ParticipantRegisterResponse:
     custom_code = None
     demographics_json = None
+    name_str = None
     if req.demographics and isinstance(req.demographics, dict):
         custom_code = req.demographics.get("participant_code")
+        name_str = req.demographics.get("name")
         import json
         demographics_json = json.dumps(req.demographics)
 
@@ -19,6 +21,7 @@ async def register_participant(req: schemas.ParticipantRegisterRequest, db: Asyn
         version_id=req.version_id,
         condition_id=req.condition_id,
         demographics=demographics_json,
+        name=name_str,
         status="enrolled"
     )
     if custom_code:
@@ -26,6 +29,7 @@ async def register_participant(req: schemas.ParticipantRegisterRequest, db: Asyn
 
     db.add(new_participant)
     await db.flush()  # get new_participant.id inside atomic transaction
+    new_participant.participant_id = new_participant.participant_code or f"P0000{new_participant.id}"
 
     new_session = Session(
         participant_id=new_participant.id,
