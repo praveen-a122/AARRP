@@ -109,6 +109,29 @@ const ReadingLayoutInner: React.FC<ReadingLayoutProps> = ({ participantCode, ini
       elapsedSeconds,
     });
 
+    // ─── INSTANT LOCAL JSON EXPORT DOWNLOAD ──────────
+    try {
+      const sessionExportData = {
+        participant_identifier: participantCode,
+        session_id: `sess_${participantCode}`,
+        completed_at: new Date().toISOString(),
+        total_elapsed_seconds: elapsedSeconds,
+        difficulty_ratings: diffRatings,
+        quiz_answers: quizAnswers,
+        paragraph_telemetry: paraStats,
+        ai_interventions_log: interventionLog,
+      };
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(sessionExportData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `AARRP_Telemetry_${participantCode}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    } catch (err) {
+      console.error('Failed to trigger JSON file download:', err);
+    }
+
     // ─── SUPABASE SYNC: Save full session data to database ──────────
     await saveSessionToSupabase(diffRatings, quizAnswers);
 
@@ -240,7 +263,7 @@ const ReadingLayoutInner: React.FC<ReadingLayoutProps> = ({ participantCode, ini
         totalElapsedSeconds={elapsedSeconds}
         onContinueToAssessment={() => {
           setShowCompleteDialog(false);
-          router.push(`/participant/${participantCode}/${activeSection?.id || 'sec_1'}/quiz`);
+          router.push(`/participant/${participantCode}/complete`);
         }}
         onReturnHome={() => router.push('/participant')}
       />

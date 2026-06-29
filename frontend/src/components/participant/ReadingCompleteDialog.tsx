@@ -55,7 +55,7 @@ export const ReadingCompleteDialog: React.FC<ReadingCompleteDialogProps> = ({
         <div className="pt-2 flex flex-col gap-3">
           {onContinueToAssessment && (
             <Button variant="default" size="lg" onClick={onContinueToAssessment} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg">
-              Proceed to Comprehension Assessment →
+              View Study Completion Report →
             </Button>
           )}
           {onReturnHome && (

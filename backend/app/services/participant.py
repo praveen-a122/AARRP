@@ -29,7 +29,9 @@ async def register_participant(req: schemas.ParticipantRegisterRequest, db: Asyn
 
     db.add(new_participant)
     await db.flush()  # get new_participant.id inside atomic transaction
-    new_participant.participant_id = new_participant.participant_code or f"P0000{new_participant.id}"
+    formatted_code = str(custom_code) if custom_code else f"P{new_participant.id:03d}"
+    new_participant.participant_code = formatted_code
+    new_participant.participant_id = formatted_code
 
     new_session = Session(
         participant_id=new_participant.id,
@@ -41,7 +43,7 @@ async def register_participant(req: schemas.ParticipantRegisterRequest, db: Asyn
 
     return schemas.ParticipantRegisterResponse(
         participant_id=new_participant.id,
-        participant_code=new_participant.participant_code or f"P0000{new_participant.id}",
+        participant_code=formatted_code,
         session_id=new_session.id,
         status=new_participant.status
     )

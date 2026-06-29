@@ -44,7 +44,7 @@ export default function ParticipantCompletionPage({ params }: CompletionPageProp
           Study Complete!
         </h1>
         <p className="text-sm text-slate-300">
-          Thank you for participating in the <strong className="text-white">Adaptive Neural Scaffolding Study</strong>. Your comprehension assessment and reading telemetry have been recorded.
+          Thank you for participating in the <strong className="text-white">Adaptive Neural Scaffolding Study</strong>. Your reading session telemetry and cognitive interaction data have been logged and verified.
         </p>
 
         <Card className="border-slate-800 bg-slate-900/80 backdrop-blur-xl shadow-2xl text-left overflow-hidden">
@@ -68,8 +68,8 @@ export default function ParticipantCompletionPage({ params }: CompletionPageProp
               <span className="font-semibold text-white">100% Completed</span>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-800/40">
-              <span className="text-slate-400">Comprehension Quizzes</span>
-              <span className="font-semibold text-white">Submitted & Scored</span>
+              <span className="text-slate-400">Telemetry Export</span>
+              <span className="font-semibold text-emerald-400">Downloaded & Saved</span>
             </div>
             <div className="flex justify-between py-1">
               <span className="text-slate-400">Completion Time</span>
