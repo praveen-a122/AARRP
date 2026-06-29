@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { AppleSelect } from '@/components/ui/AppleSelect';
+import { INDIAN_REGIONS, INDIAN_LANGUAGES, ACADEMIC_BRANCHES } from '@/lib/demographicData';
 import { apiClient } from '@/lib/apiClient';
 
 export default function ParticipantPortalPage() {
@@ -130,90 +132,45 @@ export default function ParticipantPortalPage() {
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label htmlFor="gender" className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
-                  Gender <span className="text-rose-400">*</span>
-                </label>
-                <select
-                  id="gender"
-                  value={gender}
-                  onChange={(e) => setGender(e.target.value)}
-                  className="w-full bg-slate-950/80 border border-slate-800 rounded-xl text-white text-sm px-3 py-3 focus:outline-none focus:border-indigo-500"
-                  required
-                >
-                  <option value="" disabled>-- Select Gender --</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
+              <AppleSelect
+                label="Gender"
+                value={gender}
+                onChange={setGender}
+                options={['Male', 'Female', 'Non-binary / Diverse', 'Prefer not to say']}
+                placeholder="-- Select Gender --"
+                required
+              />
             </div>
 
             {/* Branch / Course */}
-            <div className="space-y-1.5">
-              <label htmlFor="branch" className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
-                Branch / Major / Course <span className="text-rose-400">*</span>
-              </label>
-              <select
-                id="branch"
-                value={branch}
-                onChange={(e) => setBranch(e.target.value)}
-                className="w-full bg-slate-950/80 border border-slate-800 rounded-xl text-white text-sm px-3 py-3 focus:outline-none focus:border-indigo-500"
-                required
-              >
-                <option value="" disabled>-- Select Branch --</option>
-                <option value="BTech CSE">BTech CSE</option>
-                <option value="BTech ECE">BTech ECE</option>
-                <option value="BTech Mechanical">BTech Mechanical</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
+            <AppleSelect
+              label="Branch / Major / Course"
+              value={branch}
+              onChange={setBranch}
+              options={ACADEMIC_BRANCHES}
+              placeholder="-- Select Branch / Course --"
+              required
+            />
 
             {/* Region / State */}
-            <div className="space-y-1.5">
-              <label htmlFor="region" className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
-                Region / State <span className="text-rose-400">*</span>
-              </label>
-              <select
-                id="region"
-                value={region}
-                onChange={(e) => setRegion(e.target.value)}
-                className="w-full bg-slate-950/80 border border-slate-800 rounded-xl text-white text-sm px-3 py-3 focus:outline-none focus:border-indigo-500"
-                required
-              >
-                <option value="" disabled>-- Select Region --</option>
-                <option value="Andhra Pradesh">Andhra Pradesh</option>
-                <option value="Delhi">Delhi</option>
-                <option value="Karnataka">Karnataka</option>
-                <option value="Kerala">Kerala</option>
-                <option value="Tamil Nadu">Tamil Nadu</option>
-                <option value="Telangana">Telangana</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
+            <AppleSelect
+              label="Region / State"
+              value={region}
+              onChange={setRegion}
+              options={INDIAN_REGIONS}
+              placeholder="-- Select Region / State --"
+              required
+            />
 
             {/* Primary Language */}
-            <div className="space-y-1.5">
-              <label htmlFor="language" className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
-                Primary Language (Mother Tongue) <span className="text-rose-400">*</span>
-              </label>
-              <select
-                id="language"
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="w-full bg-slate-950/80 border border-slate-800 rounded-xl text-white text-sm px-3 py-3 focus:outline-none focus:border-indigo-500"
-                required
-              >
-                <option value="" disabled>-- Select Language --</option>
-                <option value="English">English</option>
-                <option value="Hindi">Hindi</option>
-                <option value="Kannada">Kannada</option>
-                <option value="Malayalam">Malayalam</option>
-                <option value="Tamil">Tamil</option>
-                <option value="Telugu">Telugu</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
+            <AppleSelect
+              label="Primary Language (Mother Tongue)"
+              value={language}
+              onChange={setLanguage}
+              options={INDIAN_LANGUAGES}
+              placeholder="-- Select Language --"
+              required
+            />
 
             <div className="pt-4">
               <Button
