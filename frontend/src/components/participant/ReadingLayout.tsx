@@ -4,10 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useReadingSession } from '@/hooks/useReadingSession';
 import { ReadingHeader } from '@/components/participant/ReadingHeader';
-import { ReadingProgress } from '@/components/participant/ReadingProgress';
 import { SectionNavigator } from '@/components/participant/SectionNavigator';
-import { SlideRenderer } from '@/components/participant/SlideRenderer';
-import { ReadingControls } from '@/components/participant/ReadingControls';
 import { SessionRecoveryDialog } from '@/components/participant/SessionRecoveryDialog';
 import { ReadingCompleteDialog } from '@/components/participant/ReadingCompleteDialog';
 import { TelemetryProvider, useTelemetry } from '@/components/providers/TelemetryProvider';
@@ -15,17 +12,14 @@ import { AIInterventionManager } from '@/components/participant/AIInterventionMa
 import { Spinner } from '@/components/ui/Spinner';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { apiClient } from '@/lib/apiClient';
-import type { Paragraph } from '@/types/api';
+import { ReadingInstructionsModal } from '@/components/participant/ReadingInstructionsModal';
+import { VerticalParagraphCard } from '@/components/participant/VerticalParagraphCard';
 
 export interface ReadingLayoutProps {
   participantCode: string;
   initialSectionId?: string;
 }
 
-// ─── Inner component ────────────────────────────────────────────────────────
-// Separated so it can safely call useTelemetry(), which requires
-// being rendered *inside* <TelemetryProvider>.
 const ReadingLayoutInner: React.FC<ReadingLayoutProps> = ({ participantCode, initialSectionId }) => {
   const router = useRouter();
   const {
@@ -35,90 +29,29 @@ const ReadingLayoutInner: React.FC<ReadingLayoutProps> = ({ participantCode, ini
     sections,
     activeSection,
     paragraphs,
-    currentSlideIdx,
     activeSectionId,
     setActiveSectionId,
     fontSize,
-    setFontSize,
     elapsedSeconds,
-    paragraphDwellTimes,
-    dwellTimesRef,
-    backtrackCount,
-    paragraphVisits,
-    flushAnalyticsRef,
-    cursorIdleSeconds,
-    cursorIdleEpisodes,
-    longestIdleDuration,
     showRecoveryDialog,
     setShowRecoveryDialog,
     showCompleteDialog,
     setShowCompleteDialog,
-    handleNextSlide,
-    handlePrevSlide,
     restartSession,
+    // Vertical layout & v1 parity telemetry exports
+    activeParaId,
+    paraStats,
+    interventionLog,
+    setInterventionLog,
+    computeFeatures,
+    logEvent,
   } = useReadingSession(participantCode, initialSectionId);
 
-  // AI scaffolding modal state
-  const [aiModalOpen, setAiModalOpen] = useState(false);
-  const [aiTargetText, setAiTargetText] = useState('');
-  const [aiResponse, setAiResponse] = useState('');
-  const [aiLoading, setAiLoading] = useState(false);
+  const [instructionsOpen, setInstructionsOpen] = useState(true);
+  const [diffRatings, setDiffRatings] = useState<Record<string, number>>({});
+  const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({});
 
-  const { logEvent } = useTelemetry();
-
-  // Prevent the initial mount from being logged as a navigation event
-  const firstRender = useRef(true);
-
-  // Flush dwell + backtrack + visit analytics to backend on every slide/section transition.
-  // Uses ref values (always-current) so the closure never reads stale state.
-  useEffect(() => {
-    if (firstRender.current) {
-      firstRender.current = false;
-      return;
-    }
-    const currentP = paragraphs[currentSlideIdx];
-    if (!currentP) return;
-
-    flushAnalyticsRef.current?.(logEvent, {
-      paragraphId: currentP.id,
-      sectionId: activeSectionId,
-      slideIndex: currentSlideIdx,
-    });
-  // logEvent and refs are stable; only re-run on actual navigation
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSlideIdx, activeSectionId]);
-
-  // Flush on tab hide or browser close — captures the last dwell seconds
-  // even if the participant never pressed Next.
-  useEffect(() => {
-    const flushOnHide = () => {
-      const currentP = paragraphs[currentSlideIdx];
-      flushAnalyticsRef.current?.(logEvent, {
-        paragraphId: currentP?.id,
-        sectionId: activeSectionId,
-        slideIndex: currentSlideIdx,
-      });
-    };
-
-    const onVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') flushOnHide();
-    };
-
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    window.addEventListener('beforeunload', flushOnHide);
-    return () => {
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-      window.removeEventListener('beforeunload', flushOnHide);
-    };
-  // Re-attach whenever the active paragraph/section changes so flushOnHide
-  // always captures the right context without a stale closure.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSlideIdx, activeSectionId]);
-
-  // Derived: reread count per paragraph (total visits minus the first)
-  const paragraphRereadCounts = Object.fromEntries(
-    Object.entries(paragraphVisits).map(([id, visits]) => [id, Math.max(0, visits - 1)])
-  );
+  const { logEvent: telemetryLogEvent } = useTelemetry();
 
   if (isLoading) {
     return (
@@ -149,50 +82,51 @@ const ReadingLayoutInner: React.FC<ReadingLayoutProps> = ({ participantCode, ini
     );
   }
 
-  const expTitle = data.experiment.title || 'Adaptive AI Reading Research';
+  const expTitle = data.experiment.title || 'Smart Reading Tracker — Dynamic Session';
   const secIndex = sections.findIndex((s) => s.id === activeSection?.id);
 
-  const handleRequestAIHelp = async (paragraph: Paragraph, queryText?: string) => {
-    setAiTargetText(queryText || paragraph.content);
-    setAiResponse('');
-    setAiModalOpen(true);
-    setAiLoading(true);
+  // Check form validation (all paragraphs must have both difficulty rating and MCQ answered)
+  const allAnswered = paragraphs.length > 0 && paragraphs.every(p => {
+    return diffRatings[p.id] !== undefined && quizAnswers[p.id] !== undefined;
+  });
 
-    // Build a telemetry snapshot for THIS paragraph only
-    const pid = paragraph.id || '';
-    const telemetrySnapshot = {
-      dwell_seconds:        dwellTimesRef.current[pid]         ?? null,
-      visit_count:          paragraphVisits[pid]               ?? null,
-      backtrack_count:      backtrackCount,
-      cursor_idle_seconds:  cursorIdleSeconds,
-      cursor_idle_episodes: cursorIdleEpisodes,
-      longest_idle_s:       longestIdleDuration,
-      word_count:           paragraph.word_count               ?? null,
-    };
-
-    try {
-      const res = await apiClient.post<{ response_text: string }>('/api/ai/respond', {
-        session_id:     1,           // resolved from real session once auth is wired
-        participant_id: 1,
-        paragraph_id:   pid,
-        context:        queryText || paragraph.content,
-        telemetry:      telemetrySnapshot,
-      });
-      setAiResponse(res.response_text);
-    } catch {
-      // Graceful degradation: show a static fallback hint
-      setAiResponse(
-        queryText
-          ? `Hint for "${queryText}": Consider how this concept connects to what you've read before. Focus on the key relationship described.`
-          : `This paragraph introduces a key mechanism. Pay attention to how its components interact with each other.`
-      );
-    } finally {
-      setAiLoading(false);
+  const handleFinishAndDownload = () => {
+    // Validate AI intervention feedback
+    for (let i = 0; i < paragraphs.length; i++) {
+      const p = paragraphs[i];
+      const log = interventionLog[p.id];
+      if (log && log.accepted === null && log.arm !== 'control') {
+        alert(`Please provide feedback on the AI help banner for Paragraph #${i + 1} before finishing!`);
+        document.getElementById(p.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
     }
+
+    logEvent('session_completed', {
+      diffRatings,
+      quizAnswers,
+      elapsedSeconds,
+    });
+    setShowCompleteDialog(true);
   };
 
+  // Active paragraph telemetry metrics for status bar
+  const currentPIndex = paragraphs.findIndex(p => p.id === activeParaId);
+  const displayPNum = currentPIndex >= 0 ? `P${currentPIndex + 1}` : '—';
+  const activeStats = activeParaId ? paraStats[activeParaId] : null;
+  const activeFeatures = activeParaId ? computeFeatures(activeParaId) : { dwellSec: 0, score: 0 };
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-primary/30 selection:text-white">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-indigo-500/30 selection:text-white pb-32">
+      {/* Instructions Modal */}
+      <ReadingInstructionsModal
+        isOpen={instructionsOpen}
+        onStart={() => {
+          setInstructionsOpen(false);
+          logEvent('session_started');
+        }}
+      />
+
       {/* Top Header */}
       <ReadingHeader
         experimentTitle={expTitle}
@@ -203,87 +137,87 @@ const ReadingLayoutInner: React.FC<ReadingLayoutProps> = ({ participantCode, ini
         onExit={() => router.push('/login')}
       />
 
-      {/* Progress Bar */}
-      <ReadingProgress
-        currentSlideIndex={currentSlideIdx}
-        totalSlidesInSection={Math.max(1, paragraphs.length)}
-        currentSectionIndex={Math.max(0, secIndex)}
-        totalSections={Math.max(1, sections.length)}
-        totalWordCount={650}
-        wordsRead={Math.min(650, (currentSlideIdx + 1) * 85)}
-      />
-
       {/* Section Tabs Navigator */}
       <SectionNavigator
         sections={sections}
         activeSectionId={activeSectionId}
-        maxUnlockedOrder={sections.length} // unlocked for demo verification
+        maxUnlockedOrder={sections.length}
         onSelectSection={(id) => {
           setActiveSectionId(id);
           router.push(`/participant/${participantCode}/${id}`);
         }}
       />
 
-      {/* Main Slide Content Area */}
-      <main className="flex-1 px-4 sm:px-8 py-8 flex flex-col justify-center max-w-5xl mx-auto w-full">
-        <SlideRenderer
-          paragraphs={paragraphs}
-          currentSlideIndex={currentSlideIdx}
-          fontSize={fontSize}
-          onRequestAIHelp={handleRequestAIHelp}
-        />
-      </main>
-
-      {/* Sticky Controls Footer */}
-      <ReadingControls
-        onNext={handleNextSlide}
-        onPrev={handlePrevSlide}
-        isFirstSlide={currentSlideIdx === 0 && secIndex <= 0}
-        isLastSlide={currentSlideIdx === paragraphs.length - 1}
-        fontSize={fontSize}
-        onFontSizeChange={setFontSize}
-        onExit={() => router.push('/participant')}
-      />
-
-      {/* AI Intervention Scaffolding Modal */}
-      {aiModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-          <Card className="max-w-lg w-full p-6 sm:p-8 bg-slate-900 border-primary/40 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">🤖</span>
-                <h3 className="text-base font-bold text-white">AI Cognitive Scaffolding</h3>
-              </div>
-              <button type="button" onClick={() => setAiModalOpen(false)} className="text-slate-400 hover:text-white text-sm">
-                ✕
-              </button>
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 text-xs font-mono text-slate-300 max-h-32 overflow-y-auto">
-              <span className="text-slate-500 block text-[10px] uppercase mb-1">Target Context</span>
-              &quot;{aiTargetText}&quot;
-            </div>
-
-            <div className="min-h-[80px] flex items-center justify-center">
-              {aiLoading ? (
-                <div className="flex items-center gap-3 text-xs text-primary-light font-mono animate-pulse">
-                  <Spinner size="sm" /> Generating adaptive cognitive scaffolding...
-                </div>
-              ) : (
-                <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 text-xs text-slate-100 leading-relaxed font-sans">
-                  {aiResponse}
-                </div>
-              )}
-            </div>
-
-            <div className="pt-2 flex justify-end gap-2">
-              <Button variant="default" size="sm" onClick={() => setAiModalOpen(false)} className="text-xs bg-primary hover:bg-primary-dark">
-                Got It, Resume Reading
-              </Button>
-            </div>
-          </Card>
+      {/* Main Vertical Scrolling Content Area */}
+      <main className="flex-1 px-4 sm:px-8 py-8 max-w-4xl mx-auto w-full">
+        {/* Important rule guidance banner matching v1 */}
+        <div className="mb-8 p-4 rounded-xl bg-indigo-950/40 border border-indigo-500/30 border-l-4 border-l-indigo-500 flex items-start gap-3 text-sm text-indigo-200">
+          <span className="text-lg">💡</span>
+          <div>
+            <strong className="text-white">Important Reading Rule:</strong> Please use your mouse cursor as a visual pointer/guide to track words across the screen as you read. This lets our background adapter accurately monitor your reading flow!
+          </div>
         </div>
-      )}
+
+        <div className="space-y-4">
+          {paragraphs.map((p, i) => (
+            <VerticalParagraphCard
+              key={p.id}
+              paragraph={p}
+              index={i}
+              totalCount={paragraphs.length}
+              isActive={activeParaId === p.id}
+              fontSize={fontSize}
+              diffRating={diffRatings[p.id]}
+              onDiffChange={(val) => setDiffRatings(prev => ({ ...prev, [p.id]: val }))}
+              quizAnswer={quizAnswers[p.id]}
+              onQuizChange={(val) => setQuizAnswers(prev => ({ ...prev, [p.id]: val }))}
+              intervention={interventionLog[p.id]}
+              onInterventionFeedback={(helpful) => {
+                setInterventionLog(prev => {
+                  const cur = prev[p.id];
+                  if (!cur) return prev;
+                  return { ...prev, [p.id]: { ...cur, accepted: helpful } };
+                });
+                logEvent('intervention_feedback', { paragraph_id: p.id, helpful });
+              }}
+            />
+          ))}
+        </div>
+      </main>
+      {/* Fixed Bottom Status Panel matching v1 */}
+      <div id="status-panel" className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t-2 border-indigo-500 px-6 py-3.5 flex flex-wrap items-center justify-between gap-6 z-40 shadow-2xl">
+        <div className="flex items-center gap-6 sm:gap-10">
+          <div className="flex flex-col">
+            <span className="text-[10px] uppercase font-mono tracking-wider text-slate-400">Current Paragraph</span>
+            <span className="text-base font-extrabold text-white font-mono">{displayPNum}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[10px] uppercase font-mono tracking-wider text-slate-400">Dwell Time (s)</span>
+            <span className="text-base font-extrabold text-indigo-400 font-mono">{activeFeatures.dwellSec.toFixed(1)}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[10px] uppercase font-mono tracking-wider text-slate-400">Reread Count</span>
+            <span className="text-base font-extrabold text-purple-400 font-mono">{activeStats?.rereadCount || 0}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[10px] uppercase font-mono tracking-wider text-slate-400">Struggle Score</span>
+            <span className="text-base font-extrabold text-amber-400 font-mono">{activeFeatures.score.toFixed(2)}</span>
+          </div>
+        </div>
+
+        <Button
+          type="button"
+          disabled={!allAnswered}
+          onClick={handleFinishAndDownload}
+          className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ml-auto ${
+            allAnswered
+              ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 cursor-pointer'
+              : 'bg-slate-800 text-slate-500 border border-slate-700 opacity-50 cursor-not-allowed'
+          }`}
+        >
+          Finish & Download Data
+        </Button>
+      </div>
 
       {/* Session Recovery Dialog */}
       <SessionRecoveryDialog
@@ -311,8 +245,6 @@ const ReadingLayoutInner: React.FC<ReadingLayoutProps> = ({ participantCode, ini
   );
 };
 
-// ─── Public export ───────────────────────────────────────────────────────────
-// Thin shell: owns TelemetryProvider so ReadingLayoutInner can call useTelemetry()
 export const ReadingLayout: React.FC<ReadingLayoutProps> = (props) => (
   <TelemetryProvider>
     <ReadingLayoutInner {...props} />

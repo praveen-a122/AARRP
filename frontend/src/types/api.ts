@@ -29,6 +29,11 @@ export interface Paragraph {
   order: number;
   word_count: number;
   created_at?: string;
+  quiz?: {
+    question: string;
+    options: string[];
+    answer: number;
+  };
 }
 
 export interface ReadingSection {
