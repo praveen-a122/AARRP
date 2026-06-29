@@ -120,3 +120,29 @@ async def complete_participant_session(participant_id: str, db: AsyncSession, pa
                 session.export_json = json.dumps(payload, indent=2)
         await db.commit()
     return {"status": "completed", "timestamp": str(now)}
+
+
+async def get_participant_export(participant_id: str, db: AsyncSession):
+    stmt = select(Participant).where(Participant.participant_code == participant_id)
+    result = await db.execute(stmt)
+    participant = result.scalar_one_or_none()
+    if not participant and participant_id.isdigit():
+        stmt = select(Participant).where(Participant.id == int(participant_id))
+        result = await db.execute(stmt)
+        participant = result.scalar_one_or_none()
+
+    if not participant:
+        raise HTTPException(status_code=404, detail="Participant not found")
+
+    stmt_s = select(Session).where(Session.participant_id == participant.id).order_by(Session.id.desc()).limit(1)
+    res_s = await db.execute(stmt_s)
+    session = res_s.scalar_one_or_none()
+
+    if not session or not session.export_json:
+        return {
+            "participant_identifier": participant.participant_code or f"P{participant.id:03d}",
+            "status": participant.status,
+            "message": "Full telemetry export JSON has not been recorded for this session yet."
+        }
+
+    return json.loads(session.export_json)

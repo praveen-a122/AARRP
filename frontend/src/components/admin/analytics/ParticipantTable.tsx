@@ -3,7 +3,9 @@
 import React from 'react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { DataTable, type Column } from '@/components/ui/DataTable';
+import { apiClient } from '@/lib/apiClient';
 import type { ParticipantTelemetrySummary } from '@/hooks/useResearchAnalytics';
 
 export interface ParticipantTableProps {
@@ -15,6 +17,21 @@ export const ParticipantTable: React.FC<ParticipantTableProps> = ({ participants
     const m = Math.floor(secs / 60);
     const s = secs % 60;
     return `${m}m ${s}s`;
+  };
+
+  const handleDownloadExport = async (participantId: string) => {
+    try {
+      const data = await apiClient.get<Record<string, unknown>>(`/api/participant/export/${participantId}`);
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `Supabase_Export_${participantId}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    } catch (err) {
+      alert(`Could not retrieve Supabase export JSON for ${participantId}: ${err}`);
+    }
   };
 
   const columns: Column<ParticipantTelemetrySummary>[] = [
@@ -86,6 +103,21 @@ export const ParticipantTable: React.FC<ParticipantTableProps> = ({ participants
             return <Badge variant="error">Dropped Out</Badge>;
         }
       },
+    },
+    {
+      accessorKey: 'participantId' as unknown as keyof ParticipantTelemetrySummary,
+      header: 'Export Data',
+      sortable: false,
+      cell: (row) => (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleDownloadExport(row.participantId)}
+          className="text-[11px] py-1 px-2.5 h-auto bg-slate-800/80 hover:bg-indigo-600 hover:text-white border-slate-700 font-mono transition-all"
+        >
+          📥 Download JSON
+        </Button>
+      ),
     },
   ];
 

@@ -22,3 +22,8 @@ async def get_participant_status(participant_id: str, db: AsyncSession = Depends
 async def complete_participant_session(participant_id: str, payload: Optional[Dict[str, Any]] = Body(default=None), db: AsyncSession = Depends(get_db)):
     return await service.complete_participant_session(participant_id, db, payload)
 
+
+@router.get("/export/{participant_id}")
+async def get_participant_export(participant_id: str, db: AsyncSession = Depends(get_db)):
+    return await service.get_participant_export(participant_id, db)
+
