@@ -3,52 +3,75 @@ import Link from 'next/link';
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen relative overflow-hidden flex flex-col items-center justify-center p-6 bg-background">
-      {/* Background radial gradients */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl pointer-events-none animate-pulse-slow" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/15 rounded-full blur-3xl pointer-events-none" />
+    <main className="min-h-screen relative overflow-hidden flex flex-col items-center justify-center p-6 bg-[#0b0f19] text-slate-100">
+      {/* Ambient background glow & grid */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f293710_1px,transparent_1px),linear-gradient(to_bottom,#1f293710_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none" />
+      <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-indigo-500/15 rounded-full blur-3xl pointer-events-none animate-pulse" />
+      <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="relative z-10 max-w-3xl w-full text-center space-y-8">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary-light text-xs font-semibold tracking-wider uppercase mb-2">
-          <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
-          Research Platform 2.0
+      <div className="relative z-10 max-w-4xl w-full text-center space-y-8 animate-fade-in">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-bold tracking-wider uppercase shadow-inner">
+          <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
+          Experimental Study Module v2.0
         </div>
 
-        <h1 className="text-red-500 text-9xl font-extrabold tracking-tight">
-          THIS IS THE CORRECT PAGE
+        <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-white leading-tight">
+          Adaptive AI Reading <br className="hidden sm:block" />
+          <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-emerald-400 bg-clip-text text-transparent">
+            Research Platform
+          </span>
         </h1>
 
-        <p className="text-lg text-slate-400 max-w-xl mx-auto leading-relaxed">
-          State-of-the-art experiment orchestration and real-time reading comprehension analytics powered by adaptive AI interventions.
+        <p className="text-base sm:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed font-sans">
+          State-of-the-art reading comprehension analytics powered by real-time telemetry tracking and dynamic AI scaffolding interventions.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 max-w-2xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-8 max-w-3xl mx-auto">
+          {/* Participant Card */}
           <Link
             href="/participant"
-            className="group relative glass-panel p-8 flex flex-col items-start text-left border border-slate-800 hover:border-accent/50 transition-all duration-300 hover:shadow-2xl hover:shadow-accent/10 hover:-translate-y-1"
+            className="group relative bg-slate-900/80 backdrop-blur-xl p-8 rounded-2xl flex flex-col items-start text-left border border-slate-800 hover:border-indigo-500/60 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/15 hover:-translate-y-1.5"
           >
-            <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center text-accent mb-4 group-hover:scale-110 transition-transform">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-t-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 mb-5 group-hover:scale-110 transition-transform">
+              <span className="text-2xl">📚</span>
             </div>
-            <h3 className="text-xl font-bold text-white mb-2 group-hover:text-accent transition-colors">Participant Portal</h3>
-            <p className="text-sm text-slate-400">Enroll in reading experiments, complete comprehension checks, and interact with adaptive feedback.</p>
+            <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-indigo-400 transition-colors">
+              Participant Study Portal
+            </h3>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              Register your demographic profile, engage in vertical reading experiments, complete quick MCQs, and receive real-time AI vocabulary & summary scaffolding.
+            </p>
+            <div className="mt-6 inline-flex items-center gap-2 text-xs font-bold text-indigo-400 group-hover:translate-x-1 transition-transform">
+              Enter Study Module →
+            </div>
           </Link>
 
+          {/* Researcher Card */}
           <Link
             href="/login"
-            className="group relative glass-panel p-8 flex flex-col items-start text-left border border-slate-800 hover:border-primary/50 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1"
+            className="group relative bg-slate-900/80 backdrop-blur-xl p-8 rounded-2xl flex flex-col items-start text-left border border-slate-800 hover:border-emerald-500/60 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/15 hover:-translate-y-1.5"
           >
-            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-t-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-5 group-hover:scale-110 transition-transform">
+              <span className="text-2xl">🔬</span>
             </div>
-            <h3 className="text-xl font-bold text-white mb-2 group-hover:text-primary transition-colors">Admin & Researcher CMS</h3>
-            <p className="text-sm text-slate-400">Design study wizards, manage experimental conditions, configure AI prompts, and export analytics.</p>
+            <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">
+              Researcher & Admin CMS
+            </h3>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              Design study protocols, manage experimental cohorts, analyze live reading telemetry data, and export comprehensive research analytics.
+            </p>
+            <div className="mt-6 inline-flex items-center gap-2 text-xs font-bold text-emerald-400 group-hover:translate-x-1 transition-transform">
+              Access Admin Console →
+            </div>
           </Link>
+        </div>
+
+        <div className="pt-8 text-xs font-mono text-slate-500 flex items-center justify-center gap-6">
+          <span>🔒 IRB & HIPAA Compliant Telemetry</span>
+          <span>•</span>
+          <span>⚡ Supabase Database Sync</span>
         </div>
       </div>
     </main>

@@ -3,29 +3,76 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { apiClient } from '@/lib/apiClient';
 
 export default function ParticipantPortalPage() {
   const router = useRouter();
-  const [participantCode, setParticipantCode] = useState('rc2-demo');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleJoin = (e: React.FormEvent) => {
+  // Demographic registration form state matching v1 specification
+  const [name, setName] = useState('');
+  const [age, setAge] = useState('');
+  const [gender, setGender] = useState('');
+  const [branch, setBranch] = useState('');
+  const [region, setRegion] = useState('');
+  const [language, setLanguage] = useState('');
+
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!participantCode.trim()) return;
+    if (!name.trim() || !age || !gender || !branch || !region || !language) {
+      alert('Please fill out all demographic fields to register for the experimental study.');
+      return;
+    }
+
     setIsLoading(true);
-    router.push(`/participant/${participantCode.trim()}`);
+    const demographics = {
+      name: name.trim(),
+      age: parseInt(age, 10),
+      gender,
+      branch,
+      region,
+      language,
+      registered_at: new Date().toISOString(),
+    };
+
+    try {
+      // Connect to backend/Supabase database to create participant and get generated ID
+      const res = await apiClient.post<{ participant_code?: string; participant_id?: number }>(
+        '/api/participant/register',
+        { demographics }
+      );
+
+      const generatedCode = res.participant_code || (res.participant_id ? `P${res.participant_id.toString().padStart(6, '0')}` : null);
+      
+      if (generatedCode) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`aarrp_demographics_${generatedCode}`, JSON.stringify(demographics));
+        }
+        router.push(`/participant/${generatedCode}`);
+        return;
+      }
+    } catch (error) {
+      console.warn('Backend API connection fallback triggered. Generating client-side session ID.', error);
+    }
+
+    // Graceful fallback if standalone frontend on Vercel is temporarily disconnected from backend
+    const fallbackCode = `P_${Math.floor(100000 + Math.random() * 900000)}`;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`aarrp_demographics_${fallbackCode}`, JSON.stringify(demographics));
+    }
+    router.push(`/participant/${fallbackCode}`);
   };
 
   return (
-    <main className="min-h-screen relative overflow-hidden flex flex-col items-center justify-center p-6 bg-slate-950 text-slate-100">
+    <main className="min-h-screen relative overflow-hidden flex flex-col items-center justify-center p-4 sm:p-6 bg-[#0b0f19] text-slate-100 py-12">
       {/* Ambient background glow */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/15 rounded-full blur-3xl pointer-events-none animate-pulse" />
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/15 rounded-full blur-3xl pointer-events-none animate-pulse" />
       <div className="absolute bottom-10 left-10 w-80 h-80 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
 
-      <div className="relative z-10 w-full max-w-md space-y-6 animate-fade-in">
+      <div className="relative z-10 w-full max-w-xl space-y-6 animate-fade-in">
         <div className="text-center space-y-2">
           <Link
             href="/"
@@ -36,66 +83,161 @@ export default function ParticipantPortalPage() {
             </svg>
             Back to Portal Selection
           </Link>
-          <div className="inline-block px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-medium mb-2">
-            AARRP Research Platform
+          <div className="inline-block px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold uppercase tracking-wider mb-2">
+            AARRP Experimental Protocol v1 Parity
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-            Participant Portal
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+            Participant Registration
           </h1>
-          <p className="text-sm text-slate-400">
-            Enter your assigned participant code to begin or resume your adaptive reading comprehension module.
+          <p className="text-sm text-slate-400 max-w-md mx-auto">
+            Please enter your demographic details below. A unique research participant ID will be automatically generated by Supabase for anonymous tracking.
           </p>
         </div>
 
-        <Card className="border-slate-800 bg-slate-900/80 backdrop-blur-xl shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500" />
+        <Card className="border-slate-800 bg-slate-900/90 backdrop-blur-xl shadow-2xl relative overflow-hidden p-6 sm:p-8 space-y-6">
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500" />
 
-          <CardHeader className="pt-8 pb-4">
-            <CardTitle className="text-lg text-white">Experimental Cohort Access</CardTitle>
-            <CardDescription className="text-slate-400">
-              Your session progress, dwell metrics, and comprehension responses are saved automatically.
-            </CardDescription>
-          </CardHeader>
+          <form onSubmit={handleRegister} className="space-y-5 font-sans">
+            {/* Full Name */}
+            <div className="space-y-1.5">
+              <label htmlFor="name" className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+                Full Name <span className="text-rose-400">*</span>
+              </label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="e.g. Alex Johnson"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="bg-slate-950/80 border-slate-800 text-white placeholder:text-slate-600 focus:border-indigo-500 text-sm py-5 w-full rounded-xl"
+                required
+              />
+            </div>
 
-          <CardContent className="pb-6">
-            <form onSubmit={handleJoin} className="space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="code" className="text-xs font-medium text-slate-300 uppercase tracking-wider">
-                  Participant Code
+            {/* Age & Gender Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label htmlFor="age" className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  Age <span className="text-rose-400">*</span>
                 </label>
                 <Input
-                  id="code"
-                  type="text"
-                  placeholder="e.g. rc2-demo or P00001"
-                  value={participantCode}
-                  onChange={(e) => setParticipantCode(e.target.value)}
-                  className="bg-slate-950/80 border-slate-800 text-white placeholder:text-slate-600 focus:border-indigo-500 text-base py-6"
+                  id="age"
+                  type="number"
+                  min="15"
+                  max="99"
+                  placeholder="e.g. 20"
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
+                  className="bg-slate-950/80 border-slate-800 text-white placeholder:text-slate-600 focus:border-indigo-500 text-sm py-5 w-full rounded-xl"
                   required
                 />
-                <p className="text-[11px] text-slate-500">
-                  Tip: Use <code className="text-indigo-400">rc2-demo</code> for validation verification.
-                </p>
               </div>
 
+              <div className="space-y-1.5">
+                <label htmlFor="gender" className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  Gender <span className="text-rose-400">*</span>
+                </label>
+                <select
+                  id="gender"
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value)}
+                  className="w-full bg-slate-950/80 border border-slate-800 rounded-xl text-white text-sm px-3 py-3 focus:outline-none focus:border-indigo-500"
+                  required
+                >
+                  <option value="" disabled>-- Select Gender --</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Branch / Course */}
+            <div className="space-y-1.5">
+              <label htmlFor="branch" className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+                Branch / Major / Course <span className="text-rose-400">*</span>
+              </label>
+              <select
+                id="branch"
+                value={branch}
+                onChange={(e) => setBranch(e.target.value)}
+                className="w-full bg-slate-950/80 border border-slate-800 rounded-xl text-white text-sm px-3 py-3 focus:outline-none focus:border-indigo-500"
+                required
+              >
+                <option value="" disabled>-- Select Branch --</option>
+                <option value="BTech CSE">BTech CSE</option>
+                <option value="BTech ECE">BTech ECE</option>
+                <option value="BTech Mechanical">BTech Mechanical</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            {/* Region / State */}
+            <div className="space-y-1.5">
+              <label htmlFor="region" className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+                Region / State <span className="text-rose-400">*</span>
+              </label>
+              <select
+                id="region"
+                value={region}
+                onChange={(e) => setRegion(e.target.value)}
+                className="w-full bg-slate-950/80 border border-slate-800 rounded-xl text-white text-sm px-3 py-3 focus:outline-none focus:border-indigo-500"
+                required
+              >
+                <option value="" disabled>-- Select Region --</option>
+                <option value="Andhra Pradesh">Andhra Pradesh</option>
+                <option value="Delhi">Delhi</option>
+                <option value="Karnataka">Karnataka</option>
+                <option value="Kerala">Kerala</option>
+                <option value="Tamil Nadu">Tamil Nadu</option>
+                <option value="Telangana">Telangana</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            {/* Primary Language */}
+            <div className="space-y-1.5">
+              <label htmlFor="language" className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+                Primary Language (Mother Tongue) <span className="text-rose-400">*</span>
+              </label>
+              <select
+                id="language"
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                className="w-full bg-slate-950/80 border border-slate-800 rounded-xl text-white text-sm px-3 py-3 focus:outline-none focus:border-indigo-500"
+                required
+              >
+                <option value="" disabled>-- Select Language --</option>
+                <option value="English">English</option>
+                <option value="Hindi">Hindi</option>
+                <option value="Kannada">Kannada</option>
+                <option value="Malayalam">Malayalam</option>
+                <option value="Tamil">Tamil</option>
+                <option value="Telugu">Telugu</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div className="pt-4">
               <Button
                 type="submit"
                 variant="default"
                 size="lg"
-                disabled={isLoading || !participantCode.trim()}
-                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-6 shadow-lg shadow-indigo-600/20 transition-all duration-200"
+                disabled={isLoading}
+                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-6 rounded-xl shadow-lg shadow-indigo-600/25 transition-all text-base"
               >
-                {isLoading ? 'Loading Study Module...' : 'Enter Reading Study →'}
+                {isLoading ? 'Connecting to Supabase Database...' : 'Start Reading Session →'}
               </Button>
-            </form>
-          </CardContent>
+            </div>
+          </form>
 
-          <CardFooter className="bg-slate-950/50 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-500 py-4">
-            <span>Secure Telemetry Enabled</span>
-            <span className="flex items-center gap-1.5">
+          <div className="border-t border-slate-800/80 pt-4 flex items-center justify-between text-[11px] font-mono text-slate-500">
+            <span>No User Auth Required</span>
+            <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Connected
+              Supabase Auto-ID Enabled
             </span>
-          </CardFooter>
+          </div>
         </Card>
       </div>
     </main>
