@@ -83,10 +83,7 @@ export default function ParticipantPortalPage() {
             </svg>
             Back to Portal Selection
           </Link>
-          <div className="inline-block px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold uppercase tracking-wider mb-2">
-            AARRP Experimental Protocol v1 Parity
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mt-2">
             Participant Registration
           </h1>
           <p className="text-sm text-slate-400 max-w-md mx-auto">

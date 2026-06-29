@@ -7,7 +7,6 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  CardFooter,
 } from '@/components/ui/Card';
 import { LoginForm } from '@/components/auth/LoginForm';
 
@@ -56,10 +55,13 @@ export default function LoginPage() {
             <LoginForm />
           </CardContent>
 
-          <CardFooter className="bg-slate-950/40 border-t border-slate-800/60 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 py-4 gap-2">
-            <span>AARRP Version 2.0</span>
-            <span>Security & Compliance Active</span>
-          </CardFooter>
+          <div className="bg-slate-950/60 border-t border-slate-800/80 px-6 py-4 flex items-center justify-between text-[11px] font-mono text-slate-500 rounded-b-xl">
+            <span>Admin Research Console</span>
+            <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              Secure Session Active
+            </span>
+          </div>
         </Card>
       </div>
     </main>
