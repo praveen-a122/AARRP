@@ -335,16 +335,15 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
     if (s.rereadCount >= 2) return "reread";
 
     // Rule 1: Cursor stopped near a complex word for 4-5s → VOCABULARY
-    if (s.cursorStopNearComplexWord && complexWordIdleTicksRef.current >= 3) return "complex_word_pause";
+    if (s.cursorStopNearComplexWord) return "complex_word_pause";
 
-    // Rule 2: Stuck after reading only 4-5 words — very slow reading → SUMMARY
-    const dwellSec = s.dwellMs / 1000;
-    const wpm = dwellSec > 0 ? (s.wordCount / dwellSec) * 60 : 999;
-    if (dwellSec > 8 && wpm < 40) return "slow_stuck";
+    // Rule 2: Stuck / paused after reading ~4-5 words → SUMMARY
+    if (s.cursorStops >= 1 || s.dwellMs >= 6000) {
+      if (s.backtrackCount < 2) return "slow_stuck";
+    }
 
-    // Rule 4: General slow reading / backtracks
-    if (s.backtrackCount >= 3) return "backtrack";
-    if (dwellSec > 20 && wpm < 80) return "slow_reading";
+    // Rule 4: Backtracks / slow reading
+    if (s.backtrackCount >= 2) return "backtrack";
 
     return "general";
   }, []);
@@ -369,9 +368,6 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
         case "backtrack":
           arm = "D_analogy";      // Analogy for heavy backtracking
           break;
-        case "slow_reading":
-          arm = "C_rephrase";     // Also rephrase for very slow reading
-          break;
         default:
           arm = "D_analogy";      // Fallback
           break;
@@ -392,14 +388,10 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
     const complexTerms = COMPLEX_WORDS[paraId];
     if (!complexTerms || complexTerms.length === 0) return false;
 
-    // Get the element at cursor position
     const el = document.elementFromPoint(x, y);
     if (!el) return false;
 
-    // Get the text content of the nearest text node
     const textContent = (el.textContent || '').toLowerCase();
-    // Check if any complex word appears in the text under the cursor
-    // We look at a small window of text around cursor position
     return complexTerms.some(term => textContent.includes(term.toLowerCase()));
   }, []);
 
@@ -418,7 +410,6 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
           return updated;
         });
 
-        // Legacy mirror
         setParagraphDwellTimes(prev => ({ ...prev, [pid]: (prev[pid] || 0) + 1 }));
 
         // ─── v1 TRIGGER EVALUATION ────────────────────────────────────
@@ -426,57 +417,39 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
           const s = paraStatsRef.current[pid];
           if (!s) return;
 
+          const idleSec = (Date.now() - lastMousePosRef.current.time) / 1000;
+          const nearComplex = isCursorNearComplexWord(lastMousePosRef.current.x, lastMousePosRef.current.y, pid);
+
           // Rule 3 check: reread >= 2 → instant trigger for REPHRASE
           if (s.rereadCount >= 2) {
-            setTimeout(() => triggerArmForParagraph(pid), 10);
+            setTimeout(() => triggerArmForParagraph(pid, "C_rephrase"), 10);
             return;
           }
 
-          // Rule 1 check: complex word pause accumulator (idle ticks tracked elsewhere)
-          if (s.cursorStopNearComplexWord && complexWordIdleTicksRef.current >= 3) {
-            setTimeout(() => triggerArmForParagraph(pid), 10);
+          // Rule 1 check: complex word pause (idle 4+ sec near complex word)
+          if (nearComplex && idleSec >= 4) {
+            setTimeout(() => triggerArmForParagraph(pid, "A_definition"), 10);
             return;
           }
 
-          // Rule 2 check: stuck after ~4-5 words (very slow WPM)
-          const dwellSec = s.dwellMs / 1000;
-          const wpm = dwellSec > 0 ? (s.wordCount / dwellSec) * 60 : 999;
-          if (dwellSec > 8 && wpm < 40) {
-            setParaStats(prev2 => {
-              const cur = prev2[pid];
-              if (!cur) return prev2;
-              const newAcc = cur.struggleAccumulator + 1;
-              if (newAcc >= 3) {
-                setTimeout(() => triggerArmForParagraph(pid), 10);
-              }
-              return { ...prev2, [pid]: { ...cur, struggleAccumulator: newAcc } };
-            });
-            return;
+          // Rule 2 check: stuck after ~4-5 words (idle 4+ sec on normal word or dwell >= 6s with stops)
+          if (!nearComplex && (idleSec >= 4 || (s.dwellMs >= 6000 && s.cursorStops >= 1))) {
+            if (s.rereadCount < 2 && s.backtrackCount < 2) {
+              setTimeout(() => triggerArmForParagraph(pid, "B_summary"), 10);
+              return;
+            }
           }
 
-          // Rule 4 check: general struggle score
-          const dwellTerm = Math.min(dwellSec / 45, 1);
-          const rereadTerm = Math.min(s.rereadCount / 3, 1);
-          const backtrackTerm = Math.min(s.backtrackCount / 5, 1);
-          const stopTerm = Math.min(s.cursorStops / 4, 1);
-          const speedTerm = Math.max(0, 1 - wpm / 160);
-          const score = 0.30 * dwellTerm + 0.25 * rereadTerm + 0.20 * backtrackTerm + 0.15 * stopTerm + 0.10 * speedTerm;
-          if (score >= 0.40) {
-            setParaStats(prev2 => {
-              const cur = prev2[pid];
-              if (!cur) return prev2;
-              const newAcc = cur.struggleAccumulator + 1;
-              if (newAcc >= 3) {
-                setTimeout(() => triggerArmForParagraph(pid), 10);
-              }
-              return { ...prev2, [pid]: { ...cur, struggleAccumulator: newAcc } };
-            });
+          // Rule 4 check: backtrack >= 2
+          if (s.backtrackCount >= 2) {
+            setTimeout(() => triggerArmForParagraph(pid, "D_analogy"), 10);
+            return;
           }
         }
       }
     }, 1000);
     return () => clearInterval(timer);
-  }, [triggerArmForParagraph]);
+  }, [triggerArmForParagraph, isCursorNearComplexWord]);
 
   // Pointer tracking motor (mousemove & scroll)
   useEffect(() => {
