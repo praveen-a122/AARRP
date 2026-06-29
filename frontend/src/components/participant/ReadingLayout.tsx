@@ -13,6 +13,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { ReadingInstructionsModal } from '@/components/participant/ReadingInstructionsModal';
+import { apiClient } from '@/lib/apiClient';
 import { VerticalParagraphCard } from '@/components/participant/VerticalParagraphCard';
 
 export interface ReadingLayoutProps {
@@ -128,8 +129,13 @@ const ReadingLayoutInner: React.FC<ReadingLayoutProps> = ({ participantCode, ini
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
+      // Store in localStorage for complete page
+      localStorage.setItem(`aarrp_export_${participantCode}`, JSON.stringify(sessionExportData));
+      
+      // Send directly to backend so Supabase stores the complete export JSON
+      await apiClient.post(`/api/participant/complete/${participantCode}`, sessionExportData);
     } catch (err) {
-      console.error('Failed to trigger JSON file download:', err);
+      console.error('Failed to trigger JSON file download or sync:', err);
     }
 
     // ─── SUPABASE SYNC: Save full session data to database ──────────

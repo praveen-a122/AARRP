@@ -19,9 +19,13 @@ export default function ParticipantCompletionPage({ params }: CompletionPageProp
     // Clear local storage recovery session upon successful experiment completion
     localStorage.removeItem(`aarrp_session_${params.participantCode}`);
 
-    // Mark session complete on backend
+    // Read cached JSON export if available
+    const cachedExportStr = localStorage.getItem(`aarrp_export_${params.participantCode}`);
+    const payload = cachedExportStr ? JSON.parse(cachedExportStr) : {};
+
+    // Mark session complete on backend and store JSON export in Supabase
     apiClient
-      .post<{ status: string; timestamp: string }>(`/api/participant/complete/${params.participantCode}`, {})
+      .post<{ status: string; timestamp: string }>(`/api/participant/complete/${params.participantCode}`, payload)
       .then((res) => {
         if (res.timestamp) setCompletedAt(res.timestamp);
       })

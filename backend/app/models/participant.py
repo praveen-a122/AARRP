@@ -32,5 +32,6 @@ class Session(Base):
     started_at = Column(DateTime(timezone=True), server_default=func.now())
     last_activity_at = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
+    export_json = Column(Text, nullable=True)  # Full JSON export stored in Supabase
     
     participant = relationship("Participant", back_populates="sessions")

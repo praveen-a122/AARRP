@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends
+from typing import Optional, Dict, Any
+from fastapi import APIRouter, Depends, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas import participant as schemas
 from app.services import participant as service
@@ -18,6 +19,6 @@ async def get_participant_status(participant_id: str, db: AsyncSession = Depends
 
 
 @router.post("/complete/{participant_id}")
-async def complete_participant_session(participant_id: str, db: AsyncSession = Depends(get_db)):
-    return await service.complete_participant_session(participant_id, db)
+async def complete_participant_session(participant_id: str, payload: Optional[Dict[str, Any]] = Body(default=None), db: AsyncSession = Depends(get_db)):
+    return await service.complete_participant_session(participant_id, db, payload)
 

@@ -1,3 +1,5 @@
+import json
+from typing import Optional, Dict, Any
 from app.schemas import participant as schemas
 from app.models.participant import Participant, Session
 from app.models.experiments import ExperimentVersion
@@ -95,7 +97,7 @@ async def get_participant_status(participant_id: str, db: AsyncSession) -> schem
     )
 
 
-async def complete_participant_session(participant_id: str, db: AsyncSession):
+async def complete_participant_session(participant_id: str, db: AsyncSession, payload: Optional[Dict[str, Any]] = None):
     stmt = select(Participant).where(Participant.participant_code == participant_id)
     result = await db.execute(stmt)
     participant = result.scalar_one_or_none()
@@ -114,5 +116,7 @@ async def complete_participant_session(participant_id: str, db: AsyncSession):
             session.status = "completed"
             session.is_completed = True
             session.completed_at = now
+            if payload:
+                session.export_json = json.dumps(payload, indent=2)
         await db.commit()
     return {"status": "completed", "timestamp": str(now)}
