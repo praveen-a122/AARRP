@@ -6,6 +6,18 @@ import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/apiClient';
 import type { Experiment, ReadingSection, Paragraph } from '@/types/api';
 
+// ─── Complex words per paragraph (v1 reference) ─────────────────────────────
+// These are the technical/domain terms that warrant a vocabulary pop-up when
+// the cursor pauses on them for 4-5 seconds.
+const COMPLEX_WORDS: Record<string, string[]> = {
+  p_1: ['footprint', 'artificial intelligence', 'incorporated'],
+  p_2: ['paradigm', 'algorithm', 'elusive', 'penalizing', 'thorny', 'top-down', 'bottom-up', 'unlabelled'],
+  p_3: ['transformer', 'neural network', 'agentic', 'unstructured', 'nuance', 'autonomy', 'statistical prediction'],
+  p_4: ['actuators', 'reinforcement learning', 'hybrid architectures', 'sensors', 'perceive', 'realm of atoms'],
+  p_5: ['vector embeddings', 'cosine similarity', 'retrieval-augmented', 'vector database', 'embeddings'],
+  p_6: ['exploitation', 'exploration', 'markov decision process', 'cumulative reward', 'policy', 'value function', 'iteratively'],
+};
+
 export const V1_PARAGRAPHS: Paragraph[] = [
   {
     id: 'p_1',
@@ -126,6 +138,7 @@ export interface ParaStat {
   rereadCount: number;
   backtrackCount: number;
   cursorStops: number;
+  cursorStopNearComplexWord: boolean; // was the last idle near a complex word?
   mouseSpeeds: number[];
   struggleAccumulator: number;
   isRereadLockActive: boolean;
@@ -162,6 +175,7 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
         rereadCount: 0,
         backtrackCount: 0,
         cursorStops: 0,
+        cursorStopNearComplexWord: false,
         mouseSpeeds: [],
         struggleAccumulator: 0,
         isRereadLockActive: false,
@@ -189,6 +203,8 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
   const lastMousePosRef = useRef({ x: 0, y: 0, time: Date.now(), maxY: 0 });
   const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isReadingStartedRef = useRef(false);
+  // Track consecutive idle ticks near a complex word for vocab trigger (need 4-5s = 3 ticks @ 1.5s)
+  const complexWordIdleTicksRef = useRef(0);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['participantSession', participantCode],
@@ -258,56 +274,108 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
   useEffect(() => { paraStatsRef.current = paraStats; }, [paraStats]);
   useEffect(() => { interventionLogRef.current = interventionLog; }, [interventionLog]);
 
+  // ─── SUPABASE SYNC: send telemetry events to the backend ──────────────────
+  const flushTelemetryToBackend = useCallback(async (eventType: string, extra?: Record<string, unknown>) => {
+    const pid = activeParaIdRef.current;
+    const stats = pid ? paraStatsRef.current[pid] : null;
+    const payload = {
+      events: [{
+        event_type: eventType,
+        participant_id: participantCode,
+        session_id: `sess_${participantCode}`,
+        section_id: 'sec_1',
+        paragraph_id: pid || undefined,
+        dwell_time_s: stats ? Math.round(stats.dwellMs / 1000) : 0,
+        visit_count: stats ? stats.rereadCount + 1 : 1,
+        backtrack_count: stats?.backtrackCount || 0,
+        cursor_idle_seconds: Math.round(cursorIdleSeconds),
+        cursor_idle_episodes: stats?.cursorStops || 0,
+        longest_idle_s: 0,
+        raw_metadata: { ...extra, paraStats: stats },
+        timestamp: new Date().toISOString(),
+      }]
+    };
+    try {
+      await apiClient.post('/api/analytics/telemetry/batch', payload);
+    } catch (err) {
+      console.warn('[Supabase Sync] Telemetry flush failed (backend may be offline):', err);
+    }
+  }, [participantCode, cursorIdleSeconds]);
+
   const logEvent = useCallback((type: string, extra?: Record<string, unknown>) => {
     console.debug(`[Telemetry Event] ${type}`, { paragraph_id: activeParaIdRef.current, ...extra });
-  }, []);
+    // Fire-and-forget sync to Supabase on key events
+    if (['intervention_assigned', 'intervention_feedback', 'session_completed', 'backtrack_detected', 'reread_detected'].includes(type)) {
+      flushTelemetryToBackend(type, extra);
+    }
+  }, [flushTelemetryToBackend]);
 
-  // Compute features matching v1 formulas exactly
-  const computeFeatures = useCallback((paraId: string) => {
-    const s = paraStatsRef.current[paraId] || { wordCount: 100, dwellMs: 0, rereadCount: 0, backtrackCount: 0, cursorStops: 0, mouseSpeeds: [] };
-    const dwellSec = s.dwellMs / 1000;
-    const wpm = dwellSec > 0 ? (s.wordCount / dwellSec) * 60 : 999;
-    const dwellTerm = Math.min(dwellSec / 45, 1);
-    const rereadTerm = Math.min(s.rereadCount / 3, 1);
-    const backtrackTerm = Math.min(s.backtrackCount / 5, 1);
-    const stopTerm = Math.min(s.cursorStops / 4, 1);
-    const speedTerm = Math.max(0, 1 - wpm / 160);
-    const score = 0.30 * dwellTerm + 0.25 * rereadTerm + 0.20 * backtrackTerm + 0.15 * stopTerm + 0.10 * speedTerm;
-    return { score: Math.min(score, 1), dwellSec, wpm };
-  }, []);
+  // ─── v1 TRIGGER RULES (FIXED) ─────────────────────────────────────────────
+  //
+  // Rule 1 — VOCABULARY (A_definition):
+  //   Cursor pauses for 4-5 seconds near a COMPLEX word (not a simple word).
+  //   Detected via consecutive idle ticks (each 1.5s) near a complex word span.
+  //
+  // Rule 2 — SUMMARY (B_summary):
+  //   User is "stuck" on a paragraph — dwells beyond expected time after
+  //   reading only ~4-5 words worth of content (very slow WPM < 40).
+  //
+  // Rule 3 — REPHRASE (C_rephrase):
+  //   User rereads the same paragraph 2 or more times.
+  //
+  // Rule 4 — ANALOGY (D_analogy):
+  //   Fallback when general struggle is detected but no specific pattern above.
+  //
 
-  // Classify struggle type matching v1 exactly
-  const classifyStruggleType = useCallback((paraId: string) => {
+  const classifyStruggleType = useCallback((paraId: string): string => {
     const s = paraStatsRef.current[paraId];
     if (!s) return "general";
 
-    const rereadIntensity = s.rereadCount / 1.5;
-    const backtrackIntensity = s.backtrackCount / 1.0;
-    const slowIntensity = s.cursorStops / 1.5;
+    // Rule 3: Reread >= 2 → REPHRASE (highest priority per v1)
+    if (s.rereadCount >= 2) return "reread";
 
-    if (s.rereadCount === 0 && s.backtrackCount === 0 && s.cursorStops < 2) {
-      if (s.dwellMs > 20000) return "slow_reading";
-      return "general";
-    }
+    // Rule 1: Cursor stopped near a complex word for 4-5s → VOCABULARY
+    if (s.cursorStopNearComplexWord && complexWordIdleTicksRef.current >= 3) return "complex_word_pause";
 
-    const maxIntensity = Math.max(rereadIntensity, backtrackIntensity, slowIntensity);
-    if (maxIntensity === backtrackIntensity && s.backtrackCount >= 1) return "backtrack";
-    if (maxIntensity === slowIntensity && s.cursorStops >= 2) return "slow_reading";
-    if (s.rereadCount >= 1) return "reread";
+    // Rule 2: Stuck after reading only 4-5 words — very slow reading → SUMMARY
+    const dwellSec = s.dwellMs / 1000;
+    const wpm = dwellSec > 0 ? (s.wordCount / dwellSec) * 60 : 999;
+    if (dwellSec > 8 && wpm < 40) return "slow_stuck";
+
+    // Rule 4: General slow reading / backtracks
+    if (s.backtrackCount >= 3) return "backtrack";
+    if (dwellSec > 20 && wpm < 80) return "slow_reading";
+
     return "general";
   }, []);
 
-  // Trigger intervention arm
+  // Trigger the correct intervention ARM based on classified struggle
   const triggerArmForParagraph = useCallback((paraId: string, customArm?: string) => {
     if (interventionLogRef.current[paraId]) return;
 
     const struggleType = classifyStruggleType(paraId);
     let arm = customArm;
     if (!arm) {
-      if (struggleType === "backtrack") arm = "A_definition";
-      else if (struggleType === "reread") arm = "B_summary";
-      else if (struggleType === "slow_reading") arm = "C_rephrase";
-      else arm = "D_analogy";
+      switch (struggleType) {
+        case "complex_word_pause":
+          arm = "A_definition";   // Vocabulary help for complex word pause
+          break;
+        case "slow_stuck":
+          arm = "B_summary";      // Summary when stuck after 4-5 words
+          break;
+        case "reread":
+          arm = "C_rephrase";     // Rephrase when rereading 2+ times (v1!)
+          break;
+        case "backtrack":
+          arm = "D_analogy";      // Analogy for heavy backtracking
+          break;
+        case "slow_reading":
+          arm = "C_rephrase";     // Also rephrase for very slow reading
+          break;
+        default:
+          arm = "D_analogy";      // Fallback
+          break;
+      }
     }
 
     const supportText = SUPPORT_TEXTS[paraId]?.[arm] || "Adaptive AI Scaffolding: Pay close attention to the core concepts and causal connections in this paragraph.";
@@ -316,8 +384,24 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
       ...prev,
       [paraId]: { arm: arm!, struggle_type: struggleType, accepted: null, support_text: supportText }
     }));
-    logEvent("intervention_assigned", { arm, struggle_type: struggleType });
+    logEvent("intervention_assigned", { arm, struggle_type: struggleType, paragraph_id: paraId });
   }, [classifyStruggleType, logEvent]);
+
+  // ─── Helper: check if cursor is near a complex word in the DOM ─────────────
+  const isCursorNearComplexWord = useCallback((x: number, y: number, paraId: string): boolean => {
+    const complexTerms = COMPLEX_WORDS[paraId];
+    if (!complexTerms || complexTerms.length === 0) return false;
+
+    // Get the element at cursor position
+    const el = document.elementFromPoint(x, y);
+    if (!el) return false;
+
+    // Get the text content of the nearest text node
+    const textContent = (el.textContent || '').toLowerCase();
+    // Check if any complex word appears in the text under the cursor
+    // We look at a small window of text around cursor position
+    return complexTerms.some(term => textContent.includes(term.toLowerCase()));
+  }, []);
 
   // Clock tick interval (1 second)
   useEffect(() => {
@@ -327,7 +411,7 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
       const pid = activeParaIdRef.current;
       if (pid && isReadingStartedRef.current) {
         setParaStats(prev => {
-          const current = prev[pid] || { wordCount: 100, dwellMs: 0, rereadCount: 0, backtrackCount: 0, cursorStops: 0, mouseSpeeds: [], struggleAccumulator: 0, isRereadLockActive: false };
+          const current = prev[pid] || { wordCount: 100, dwellMs: 0, rereadCount: 0, backtrackCount: 0, cursorStops: 0, cursorStopNearComplexWord: false, mouseSpeeds: [], struggleAccumulator: 0, isRereadLockActive: false };
           const newDwell = current.dwellMs + 1000;
           const updated = { ...prev, [pid]: { ...current, dwellMs: newDwell } };
           paraStatsRef.current = updated;
@@ -337,23 +421,62 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
         // Legacy mirror
         setParagraphDwellTimes(prev => ({ ...prev, [pid]: (prev[pid] || 0) + 1 }));
 
-        // Evaluate struggle threshold (STRUGGLE_THRESHOLD = 0.35)
-        const { score } = computeFeatures(pid);
-        if (score >= 0.35 && !interventionLogRef.current[pid]) {
-          setParaStats(prev => {
-            const current = prev[pid];
-            if (!current) return prev;
-            const newAcc = current.struggleAccumulator + 1;
-            if (newAcc >= 2) {
-              setTimeout(() => triggerArmForParagraph(pid), 10);
-            }
-            return { ...prev, [pid]: { ...current, struggleAccumulator: newAcc } };
-          });
+        // ─── v1 TRIGGER EVALUATION ────────────────────────────────────
+        if (!interventionLogRef.current[pid]) {
+          const s = paraStatsRef.current[pid];
+          if (!s) return;
+
+          // Rule 3 check: reread >= 2 → instant trigger for REPHRASE
+          if (s.rereadCount >= 2) {
+            setTimeout(() => triggerArmForParagraph(pid), 10);
+            return;
+          }
+
+          // Rule 1 check: complex word pause accumulator (idle ticks tracked elsewhere)
+          if (s.cursorStopNearComplexWord && complexWordIdleTicksRef.current >= 3) {
+            setTimeout(() => triggerArmForParagraph(pid), 10);
+            return;
+          }
+
+          // Rule 2 check: stuck after ~4-5 words (very slow WPM)
+          const dwellSec = s.dwellMs / 1000;
+          const wpm = dwellSec > 0 ? (s.wordCount / dwellSec) * 60 : 999;
+          if (dwellSec > 8 && wpm < 40) {
+            setParaStats(prev2 => {
+              const cur = prev2[pid];
+              if (!cur) return prev2;
+              const newAcc = cur.struggleAccumulator + 1;
+              if (newAcc >= 3) {
+                setTimeout(() => triggerArmForParagraph(pid), 10);
+              }
+              return { ...prev2, [pid]: { ...cur, struggleAccumulator: newAcc } };
+            });
+            return;
+          }
+
+          // Rule 4 check: general struggle score
+          const dwellTerm = Math.min(dwellSec / 45, 1);
+          const rereadTerm = Math.min(s.rereadCount / 3, 1);
+          const backtrackTerm = Math.min(s.backtrackCount / 5, 1);
+          const stopTerm = Math.min(s.cursorStops / 4, 1);
+          const speedTerm = Math.max(0, 1 - wpm / 160);
+          const score = 0.30 * dwellTerm + 0.25 * rereadTerm + 0.20 * backtrackTerm + 0.15 * stopTerm + 0.10 * speedTerm;
+          if (score >= 0.40) {
+            setParaStats(prev2 => {
+              const cur = prev2[pid];
+              if (!cur) return prev2;
+              const newAcc = cur.struggleAccumulator + 1;
+              if (newAcc >= 3) {
+                setTimeout(() => triggerArmForParagraph(pid), 10);
+              }
+              return { ...prev2, [pid]: { ...cur, struggleAccumulator: newAcc } };
+            });
+          }
         }
       }
     }, 1000);
     return () => clearInterval(timer);
-  }, [computeFeatures, triggerArmForParagraph]);
+  }, [triggerArmForParagraph]);
 
   // Pointer tracking motor (mousemove & scroll)
   useEffect(() => {
@@ -379,6 +502,7 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
         if (activeParaIdRef.current !== pId) {
           setActiveParaId(pId);
           lastMousePosRef.current.maxY = e.pageY;
+          complexWordIdleTicksRef.current = 0; // reset on paragraph change
           setParaStats(prev => {
             const current = prev[pId];
             if (!current) return prev;
@@ -404,7 +528,7 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
             logEvent("backtrack_detected", { dx });
           }
 
-          // Static reread detection
+          // Reread detection (vertical scroll back up within paragraph)
           if (e.pageY > lastMousePosRef.current.maxY) {
             lastMousePosRef.current.maxY = e.pageY;
             stats.isRereadLockActive = false;
@@ -421,22 +545,39 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
         }
       }
 
+      // Reset complex word idle counter on movement
+      complexWordIdleTicksRef.current = 0;
+
       lastMousePosRef.current.x = e.clientX;
       lastMousePosRef.current.y = e.clientY;
       lastMousePosRef.current.time = now;
 
-      // Idle tracking
+      // Idle tracking (fires after 1.5s of no movement)
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
       idleTimerRef.current = setTimeout(() => {
         const pid = activeParaIdRef.current;
         if (pid && paraStatsRef.current[pid]) {
+          // Check if cursor is near a complex word
+          const nearComplex = isCursorNearComplexWord(e.clientX, e.clientY, pid);
+
+          if (nearComplex) {
+            complexWordIdleTicksRef.current += 1;
+          }
+
           setParaStats(prev => {
             const cur = prev[pid];
             if (!cur) return prev;
-            return { ...prev, [pid]: { ...cur, cursorStops: cur.cursorStops + 1 } };
+            return {
+              ...prev,
+              [pid]: {
+                ...cur,
+                cursorStops: cur.cursorStops + 1,
+                cursorStopNearComplexWord: nearComplex,
+              }
+            };
           });
           setCursorIdleSeconds(s => s + 1.5);
-          logEvent("idle", { mouse_x: e.clientX, mouse_y: e.clientY });
+          logEvent("idle", { mouse_x: e.clientX, mouse_y: e.clientY, near_complex_word: nearComplex });
         }
       }, IDLE_THRESHOLD_MS);
     };
@@ -466,7 +607,34 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
       window.removeEventListener('scroll', handleScroll);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     };
-  }, [logEvent]);
+  }, [logEvent, isCursorNearComplexWord]);
+
+  // ─── SUPABASE SYNC: Periodic auto-save every 30 seconds ───────────────────
+  useEffect(() => {
+    const autoSave = setInterval(() => {
+      if (isReadingStartedRef.current) {
+        flushTelemetryToBackend('auto_save', {
+          elapsedSeconds,
+          allParaStats: paraStatsRef.current,
+          interventionLog: interventionLogRef.current,
+        });
+      }
+    }, 30_000);
+    return () => clearInterval(autoSave);
+  }, [flushTelemetryToBackend, elapsedSeconds]);
+
+  const computeFeatures = useCallback((paraId: string) => {
+    const s = paraStatsRef.current[paraId] || { wordCount: 100, dwellMs: 0, rereadCount: 0, backtrackCount: 0, cursorStops: 0, mouseSpeeds: [] };
+    const dwellSec = s.dwellMs / 1000;
+    const wpm = dwellSec > 0 ? (s.wordCount / dwellSec) * 60 : 999;
+    const dwellTerm = Math.min(dwellSec / 45, 1);
+    const rereadTerm = Math.min(s.rereadCount / 3, 1);
+    const backtrackTerm = Math.min(s.backtrackCount / 5, 1);
+    const stopTerm = Math.min(s.cursorStops / 4, 1);
+    const speedTerm = Math.max(0, 1 - wpm / 160);
+    const score = 0.30 * dwellTerm + 0.25 * rereadTerm + 0.20 * backtrackTerm + 0.15 * stopTerm + 0.10 * speedTerm;
+    return { score: Math.min(score, 1), dwellSec, wpm };
+  }, []);
 
   const handleNextSlide = useCallback(() => {}, []);
   const handlePrevSlide = useCallback(() => {}, []);
@@ -475,6 +643,48 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
     setElapsedSeconds(0);
     setInterventionLog({});
   }, []);
+
+  // ─── SUPABASE SYNC: Full session save on finish ────────────────────────────
+  const saveSessionToSupabase = useCallback(async (diffRatings: Record<string, number>, quizAnswers: Record<string, number>) => {
+    const fullPayload = {
+      events: V1_PARAGRAPHS.map(p => ({
+        event_type: 'session_complete',
+        participant_id: participantCode,
+        session_id: `sess_${participantCode}`,
+        section_id: 'sec_1',
+        paragraph_id: p.id,
+        dwell_time_s: Math.round((paraStatsRef.current[p.id]?.dwellMs || 0) / 1000),
+        visit_count: (paraStatsRef.current[p.id]?.rereadCount || 0) + 1,
+        backtrack_count: paraStatsRef.current[p.id]?.backtrackCount || 0,
+        cursor_idle_seconds: paraStatsRef.current[p.id]?.cursorStops || 0,
+        cursor_idle_episodes: paraStatsRef.current[p.id]?.cursorStops || 0,
+        longest_idle_s: 0,
+        raw_metadata: {
+          difficulty_rating: diffRatings[p.id],
+          quiz_answer: quizAnswers[p.id],
+          quiz_correct: quizAnswers[p.id] === p.quiz?.answer,
+          intervention: interventionLogRef.current[p.id] || null,
+          full_stats: paraStatsRef.current[p.id],
+          elapsed_seconds: elapsedSeconds,
+        },
+        timestamp: new Date().toISOString(),
+      }))
+    };
+
+    try {
+      await apiClient.post('/api/analytics/telemetry/batch', fullPayload);
+      console.log('[Supabase Sync] ✅ Full session data saved successfully.');
+    } catch (err) {
+      console.error('[Supabase Sync] ❌ Full session save failed:', err);
+    }
+
+    // Also mark participant as completed
+    try {
+      await apiClient.post(`/api/participant/complete/${participantCode}`);
+    } catch (err) {
+      console.warn('[Supabase Sync] Participant completion call failed:', err);
+    }
+  }, [participantCode, elapsedSeconds]);
 
   return {
     data,
@@ -515,5 +725,6 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
     classifyStruggleType,
     triggerArmForParagraph,
     logEvent,
+    saveSessionToSupabase,
   };
 };

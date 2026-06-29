@@ -45,6 +45,7 @@ const ReadingLayoutInner: React.FC<ReadingLayoutProps> = ({ participantCode, ini
     setInterventionLog,
     computeFeatures,
     logEvent,
+    saveSessionToSupabase,
   } = useReadingSession(participantCode, initialSectionId);
 
   const [instructionsOpen, setInstructionsOpen] = useState(true);
@@ -90,7 +91,7 @@ const ReadingLayoutInner: React.FC<ReadingLayoutProps> = ({ participantCode, ini
     return diffRatings[p.id] !== undefined && quizAnswers[p.id] !== undefined;
   });
 
-  const handleFinishAndDownload = () => {
+  const handleFinishAndDownload = async () => {
     // Validate AI intervention feedback
     for (let i = 0; i < paragraphs.length; i++) {
       const p = paragraphs[i];
@@ -107,6 +108,10 @@ const ReadingLayoutInner: React.FC<ReadingLayoutProps> = ({ participantCode, ini
       quizAnswers,
       elapsedSeconds,
     });
+
+    // ─── SUPABASE SYNC: Save full session data to database ──────────
+    await saveSessionToSupabase(diffRatings, quizAnswers);
+
     setShowCompleteDialog(true);
   };
 
