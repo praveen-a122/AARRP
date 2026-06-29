@@ -110,7 +110,7 @@ const ReadingLayoutInner: React.FC<ReadingLayoutProps> = ({ participantCode, ini
       elapsedSeconds,
     });
 
-    // ─── INSTANT LOCAL JSON EXPORT DOWNLOAD ──────────
+    // ─── BACKGROUND SUPABASE EXPORT SYNC ──────────
     try {
       const sessionExportData = {
         participant_identifier: participantCode,
@@ -122,20 +122,13 @@ const ReadingLayoutInner: React.FC<ReadingLayoutProps> = ({ participantCode, ini
         paragraph_telemetry: paraStats,
         ai_interventions_log: interventionLog,
       };
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(sessionExportData, null, 2));
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `AARRP_Telemetry_${participantCode}.json`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
       // Store in localStorage for complete page
       localStorage.setItem(`aarrp_export_${participantCode}`, JSON.stringify(sessionExportData));
       
-      // Send directly to backend so Supabase stores the complete export JSON
+      // Send directly to backend so Supabase stores the complete export JSON silently
       await apiClient.post(`/api/participant/complete/${participantCode}`, sessionExportData);
     } catch (err) {
-      console.error('Failed to trigger JSON file download or sync:', err);
+      console.error('Failed background sync to Supabase:', err);
     }
 
     // ─── SUPABASE SYNC: Save full session data to database ──────────
@@ -249,7 +242,7 @@ const ReadingLayoutInner: React.FC<ReadingLayoutProps> = ({ participantCode, ini
               : 'bg-slate-800 text-slate-500 border border-slate-700 opacity-50 cursor-not-allowed'
           }`}
         >
-          Finish & Download Data
+          Finish & Submit Session
         </Button>
       </div>
 
