@@ -14,8 +14,10 @@ interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
 
+const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/+$/, '');
+
 const axiosInstance = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || '',
+  baseURL: apiBaseUrl,
   headers: {
     'Content-Type': 'application/json',
   },
