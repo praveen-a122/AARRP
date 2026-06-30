@@ -22,7 +22,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const baseStyles = 'inline-flex items-center justify-center font-medium transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background active:scale-95 disabled:opacity-50 disabled:pointer-events-none select-none';
     
     const variants = {
-      default: 'bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/90 hover:to-indigo-500 text-white shadow-lg shadow-primary/25',
+      default: 'bg-gradient-to-r from-primary to-emerald-600 hover:from-primary/90 hover:to-emerald-500 text-white shadow-lg shadow-primary/25',
       outline: 'border border-slate-700 bg-transparent hover:bg-slate-800/60 text-slate-200 hover:border-slate-600',
       secondary: 'bg-slate-800 hover:bg-slate-700 text-slate-100 shadow-md',
       destructive: 'bg-error hover:bg-error/90 text-white shadow-lg shadow-error/25',

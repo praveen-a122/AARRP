@@ -52,7 +52,7 @@ export default function ParticipantCompletionPage({ params }: CompletionPageProp
         </p>
 
         <Card className="border-slate-800 bg-slate-900/80 backdrop-blur-xl shadow-2xl text-left overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-500" />
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-500" />
           
           <CardHeader className="pb-3">
             <CardTitle className="text-base text-white flex items-center justify-between">

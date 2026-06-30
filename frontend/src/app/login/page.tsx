@@ -42,7 +42,7 @@ export default function LoginPage() {
         </div>
 
         <Card className="border-slate-800 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-indigo-500 to-accent" />
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-teal-500 to-accent" />
           
           <CardHeader className="pt-8 pb-4">
             <CardTitle className="text-lg">Account Authentication</CardTitle>

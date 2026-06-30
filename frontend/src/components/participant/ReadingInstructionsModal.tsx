@@ -16,7 +16,7 @@ export const ReadingInstructionsModal: React.FC<ReadingInstructionsModalProps> =
     <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-fade-in">
       <Card className="max-w-2xl w-full p-6 sm:p-8 bg-slate-900 border-primary/40 shadow-2xl space-y-6 relative overflow-hidden">
         {/* Top ambient accent gradient */}
-        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500" />
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-teal-500 via-cyan-500 to-emerald-500" />
 
         {/* Header */}
         <div className="flex items-start justify-between border-b border-slate-800 pb-4">
