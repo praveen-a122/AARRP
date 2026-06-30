@@ -343,14 +343,14 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
     const s = paraStatsRef.current[paraId];
     if (!s) return "general";
 
-    // Rule 3: Reread >= 2 → REPHRASE (highest priority per v1)
-    if (s.rereadCount >= 2) return "reread";
+    // Rule 3: Reread >= 3 → REPHRASE (updated per requirement)
+    if (s.rereadCount >= 3) return "reread";
 
-    // Rule 1: Cursor stopped near a complex word for 4-5s → VOCABULARY
+    // Rule 1: Cursor stopped near a complex word → VOCABULARY
     if (s.cursorStopNearComplexWord) return "complex_word_pause";
 
-    // Rule 2: Stuck / paused after reading ~4-5 words → SUMMARY
-    if (s.cursorStops >= 1 || s.dwellMs >= 6000) {
+    // Rule 2: Stuck / paused after reading → SUMMARY
+    if (s.cursorStops >= 2 || s.dwellMs >= 15000) {
       if (s.backtrackCount < 2) return "slow_stuck";
     }
 
@@ -407,6 +407,34 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
     return complexTerms.some(term => textContent.includes(term.toLowerCase()));
   }, []);
 
+  // ─── Helper: check if cursor paused at end of word or after a dot/period vs middle of word ─────────
+  const isCursorAtSentenceOrWordEnd = useCallback((x: number, y: number): boolean => {
+    try {
+      let range: Range | null = null;
+      if (typeof document.caretRangeFromPoint === 'function') {
+        range = document.caretRangeFromPoint(x, y);
+      } else if ((document as any).caretPositionFromPoint) {
+        const pos = (document as any).caretPositionFromPoint(x, y);
+        if (pos) {
+          range = document.createRange();
+          range.setStart(pos.offsetNode, pos.offset);
+        }
+      }
+      if (range && range.startContainer && range.startContainer.nodeType === Node.TEXT_NODE) {
+        const text = range.startContainer.textContent || '';
+        const offset = range.startOffset;
+        const charBefore = offset > 0 ? text[offset - 1] : '';
+        const charAfter = offset < text.length ? text[offset] : '';
+        if (charBefore === '.' || charAfter === '.' || charBefore === '?' || charAfter === '?' || charBefore === '!' || charAfter === '!' || charBefore === ';' || charAfter === ';') {
+          return true;
+        }
+        const trailingText = text.slice(offset).trim();
+        if (trailingText.length === 0) return true;
+      }
+    } catch (e) {}
+    return false;
+  }, []);
+
   // Clock tick interval (1 second)
   useEffect(() => {
     const timer = setInterval(() => {
@@ -431,25 +459,22 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
 
           const idleSec = (Date.now() - lastMousePosRef.current.time) / 1000;
           const nearComplex = isCursorNearComplexWord(lastMousePosRef.current.x, lastMousePosRef.current.y, pid);
+          const isEndOrDot = isCursorAtSentenceOrWordEnd(lastMousePosRef.current.x, lastMousePosRef.current.y);
 
-          // Rule 3 check: reread >= 2 → instant trigger for REPHRASE
-          if (s.rereadCount >= 2) {
+          // Rule 3 check: reread >= 3 → instant trigger for REPHRASE
+          if (s.rereadCount >= 3) {
             setTimeout(() => triggerArmForParagraph(pid, "C_rephrase"), 10);
             return;
           }
 
-          // Rule 1 check: complex word pause (idle 4+ sec near complex word)
-          if (nearComplex && idleSec >= 4) {
-            setTimeout(() => triggerArmForParagraph(pid, "A_definition"), 10);
-            return;
-          }
-
-          // Rule 2 check: stuck after ~4-5 words (idle 4+ sec on normal word or dwell >= 6s with stops)
-          if (!nearComplex && (idleSec >= 4 || (s.dwellMs >= 6000 && s.cursorStops >= 1))) {
-            if (s.rereadCount < 2 && s.backtrackCount < 2) {
+          // Rule 1 & 2 check: time algorithm matching v1 norms (~12s pause or 15s dwell)
+          if (idleSec >= 12 || (s.dwellMs >= 15000 && s.cursorStops >= 2)) {
+            if (isEndOrDot && s.rereadCount < 3) {
               setTimeout(() => triggerArmForParagraph(pid, "B_summary"), 10);
-              return;
+            } else {
+              setTimeout(() => triggerArmForParagraph(pid, "A_definition"), 10);
             }
+            return;
           }
 
           // Rule 4 check: backtrack >= 2
@@ -461,7 +486,7 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
       }
     }, 1000);
     return () => clearInterval(timer);
-  }, [triggerArmForParagraph, isCursorNearComplexWord]);
+  }, [triggerArmForParagraph, isCursorNearComplexWord, isCursorAtSentenceOrWordEnd]);
 
   // Pointer tracking motor (mousemove & scroll)
   useEffect(() => {
@@ -617,7 +642,10 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
     const backtrackTerm = Math.min(s.backtrackCount / 5, 1);
     const stopTerm = Math.min(s.cursorStops / 4, 1);
     const speedTerm = Math.max(0, 1 - wpm / 160);
-    const score = 0.30 * dwellTerm + 0.25 * rereadTerm + 0.20 * backtrackTerm + 0.15 * stopTerm + 0.10 * speedTerm;
+    let score = 0.30 * dwellTerm + 0.25 * rereadTerm + 0.20 * backtrackTerm + 0.15 * stopTerm + 0.10 * speedTerm;
+    if (interventionLogRef.current[paraId]) {
+      score = Math.max(score, 0.60);
+    }
     return { score: Math.min(score, 1), dwellSec, wpm };
   }, []);
 
