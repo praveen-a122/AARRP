@@ -47,3 +47,12 @@ async def login_administrator(req: schemas.AdministratorLogin, db: AsyncSession 
 async def reset_data(db: AsyncSession = Depends(get_db)):
     return await service.reset_all_participant_data(db)
 
+@router.get("/list")
+async def get_admins(db: AsyncSession = Depends(get_db)):
+    return await service.list_admins(db)
+
+@router.delete("/delete/{id}")
+async def delete_admin_user(id: int, db: AsyncSession = Depends(get_db)):
+    return await service.delete_admin(id, db)
+
+

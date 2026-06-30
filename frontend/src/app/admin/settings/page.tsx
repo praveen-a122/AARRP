@@ -26,6 +26,8 @@ export default function AdministrationSettingsPage() {
     isLoading,
     toggleFlag,
     updateConfig,
+    createAdmin,
+    deleteAdmin,
     isUpdating,
   } = useSystemSettings();
 
@@ -86,7 +88,7 @@ export default function AdministrationSettingsPage() {
           <div className="space-y-8">
             {activeTab === 'users' && (
               <>
-                <UserManagement users={users} />
+                <UserManagement users={users} onCreateAdmin={createAdmin} onDeleteAdmin={deleteAdmin} />
                 <RolesPermissions />
               </>
             )}

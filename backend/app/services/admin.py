@@ -160,3 +160,46 @@ async def reset_all_participant_data(db: AsyncSession):
     await db.commit()
     return {"status": "success", "message": "All participant data wiped and sequence reset to P01"}
 
+
+async def list_admins(db: AsyncSession):
+    from sqlalchemy import select
+    stmt = select(Administrator).order_by(Administrator.id.asc())
+    result = await db.execute(stmt)
+    admins = result.scalars().all()
+    
+    out = []
+    for a in admins:
+        stmt_r = select(AdministratorRole).where(AdministratorRole.id == a.role_id)
+        res_r = await db.execute(stmt_r)
+        role = res_r.scalar_one_or_none()
+        role_name = role.name if role else "System Admin"
+        out.append({
+            "id": a.id,
+            "admin_id": a.id,
+            "username": a.username,
+            "email": a.email,
+            "role": role_name,
+            "status": "active" if a.is_active else "suspended",
+            "lastLogin": "Just now"
+        })
+    return out
+
+
+async def delete_admin(admin_id: int, db: AsyncSession):
+    from sqlalchemy import func
+    stmt = select(Administrator).where(Administrator.id == admin_id)
+    result = await db.execute(stmt)
+    admin = result.scalar_one_or_none()
+    if not admin:
+        raise HTTPException(status_code=404, detail="Admin user not found.")
+    
+    stmt_count = select(func.count()).select_from(Administrator)
+    total_admins = (await db.execute(stmt_count)).scalar() or 0
+    if total_admins <= 1:
+        raise HTTPException(status_code=400, detail="Cannot delete the last remaining administrator.")
+        
+    await db.delete(admin)
+    await db.commit()
+    return {"status": "success", "message": "Administrator deleted successfully."}
+
+

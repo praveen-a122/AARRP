@@ -1,25 +1,70 @@
-'use client';
-
-import React from 'react';
+import React, { useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import type { AdminUserItem } from '@/hooks/useSystemSettings';
 
 export interface UserManagementProps {
   users: AdminUserItem[];
+  onCreateAdmin: (data: any) => Promise<any>;
+  onDeleteAdmin: (adminId: number) => Promise<any>;
 }
 
-export const UserManagement: React.FC<UserManagementProps> = ({ users }) => {
+export const UserManagement: React.FC<UserManagementProps> = ({ users, onCreateAdmin, onDeleteAdmin }) => {
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newRole, setNewRole] = useState('System Admin');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleDelete = async (adminId: number) => {
+    if (confirm("Are you sure you want to remove this administrator's access to the system?")) {
+      try {
+        await onDeleteAdmin(adminId);
+        alert("Administrator removed successfully.");
+      } catch (err: any) {
+        alert(err.detail || `Failed to delete admin: ${err}`);
+      }
+    }
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUsername || !newEmail || !newPassword) {
+      alert("All fields are required.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await onCreateAdmin({
+        username: newUsername,
+        email: newEmail,
+        password: newPassword,
+        role: newRole,
+      });
+      alert("Administrator created successfully.");
+      setNewUsername('');
+      setNewEmail('');
+      setNewPassword('');
+      setShowAddForm(false);
+    } catch (err: any) {
+      alert(err.detail || `Failed to create admin: ${err}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const columns: Column<AdminUserItem>[] = [
     {
-      accessorKey: 'name',
-      header: 'Researcher Name',
+      accessorKey: 'username',
+      header: 'Username',
       sortable: true,
       cell: (row) => (
         <div>
-          <strong className="text-white block text-xs">{row.name}</strong>
+          <strong className="text-white block text-xs">{row.username || row.name}</strong>
           <span className="text-[11px] font-mono text-slate-400">{row.email}</span>
         </div>
       ),
@@ -58,9 +103,14 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users }) => {
     {
       accessorKey: 'actions',
       header: 'Actions',
-      cell: () => (
-        <Button variant="outline" size="sm" onClick={() => alert('Opening Role & Permission editor modal')} className="text-[11px] h-auto py-1">
-          ⚙️ Edit Access
+      cell: (row) => (
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={() => handleDelete(row.admin_id || Number(row.id))}
+          className="text-[11px] h-auto py-1 px-2.5 bg-red-950/40 hover:bg-red-900 border-red-500/30 font-mono"
+        >
+          🗑️ Delete
         </Button>
       ),
     },
@@ -75,10 +125,85 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users }) => {
           </h3>
           <p className="text-xs text-slate-400">Manage principal investigators, research associates, and RBAC policies</p>
         </div>
-        <Button onClick={() => alert('Opening Invite New Researcher dialog')} className="bg-primary hover:bg-primary-dark text-xs font-bold self-start sm:self-auto">
-          + Invite Researcher
+        <Button
+          onClick={() => setShowAddForm(!showAddForm)}
+          className="bg-primary hover:bg-primary-dark text-xs font-bold self-start sm:self-auto"
+        >
+          {showAddForm ? 'Close Form' : '+ Create Administrator'}
         </Button>
       </div>
+
+      {showAddForm && (
+        <form onSubmit={handleCreate} className="p-4 rounded-xl border border-slate-800 bg-slate-950/50 space-y-4 max-w-lg animate-fade-in">
+          <h4 className="text-xs font-bold text-white uppercase font-mono tracking-wider">Create New Admin Account</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-[11px] font-mono text-slate-400 block mb-1">Username</label>
+              <Input
+                type="text"
+                required
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+                placeholder="e.g. jdoe"
+                className="bg-slate-900 border-slate-800 text-xs font-mono"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-mono text-slate-400 block mb-1">Email Address</label>
+              <Input
+                type="email"
+                required
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder="e.g. john@aarrp.org"
+                className="bg-slate-900 border-slate-800 text-xs font-mono"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-mono text-slate-400 block mb-1">Password</label>
+              <Input
+                type="password"
+                required
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="••••••••"
+                className="bg-slate-900 border-slate-800 text-xs font-mono"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-mono text-slate-400 block mb-1">Access Role</label>
+              <select
+                value={newRole}
+                onChange={(e) => setNewRole(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono h-[36px]"
+              >
+                <option value="System Admin">System Admin</option>
+                <option value="Principal Investigator">Principal Investigator</option>
+                <option value="Research Associate">Research Associate</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAddForm(false)}
+              className="text-xs font-mono"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={isSubmitting}
+              className="bg-primary hover:bg-primary-dark text-xs font-mono"
+            >
+              {isSubmitting ? 'Creating...' : 'Save Account'}
+            </Button>
+          </div>
+        </form>
+      )}
 
       <DataTable data={users} columns={columns} />
     </Card>

@@ -12,6 +12,8 @@ export interface AdminUserItem {
   role: 'Principal Investigator' | 'Research Associate' | 'System Admin' | 'Viewer';
   status: 'active' | 'suspended';
   lastLogin: string;
+  admin_id?: number;
+  username?: string;
 }
 
 export interface AuditLogEntry {
@@ -51,7 +53,7 @@ export const useSystemSettings = () => {
     queryKey: ['adminUsers'],
     queryFn: async () => {
       try {
-        return await apiClient.get<AdminUserItem[]>('/api/settings/users');
+        return await apiClient.get<AdminUserItem[]>('/api/admin/list');
       } catch {
         return [
           { id: 'usr_1', userId: 'usr_1', name: 'Dr. Alistair Vance', email: 'a.vance@research.org', role: 'Principal Investigator', status: 'active', lastLogin: '10m ago' },
@@ -129,6 +131,24 @@ export const useSystemSettings = () => {
     },
   });
 
+  const createAdminMutation = useMutation({
+    mutationFn: async (newAdmin: any) => {
+      return await apiClient.post('/api/admin/create', newAdmin);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+    },
+  });
+
+  const deleteAdminMutation = useMutation({
+    mutationFn: async (adminId: number) => {
+      return await apiClient.delete(`/api/admin/delete/${adminId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+    },
+  });
+
   return {
     activeTab,
     setActiveTab,
@@ -147,6 +167,8 @@ export const useSystemSettings = () => {
     isLoading: usersLoading || logsLoading || flagsLoading || configLoading,
     toggleFlag: toggleFlagMutation.mutateAsync,
     updateConfig: updateConfigMutation.mutateAsync,
-    isUpdating: toggleFlagMutation.isPending || updateConfigMutation.isPending,
+    createAdmin: createAdminMutation.mutateAsync,
+    deleteAdmin: deleteAdminMutation.mutateAsync,
+    isUpdating: toggleFlagMutation.isPending || updateConfigMutation.isPending || createAdminMutation.isPending || deleteAdminMutation.isPending,
   };
 };

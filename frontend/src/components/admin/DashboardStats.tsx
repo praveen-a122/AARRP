@@ -11,7 +11,7 @@ import type { DashboardSummary } from '@/types/api';
 export const DashboardStats: React.FC = () => {
   const { data, isLoading, isError, error } = useQuery<DashboardSummary, Error>({
     queryKey: ['admin', 'dashboard', 'stats'],
-    queryFn: () => apiClient.get<DashboardSummary>('/api/admin/analytics/dashboard'),
+    queryFn: () => apiClient.get<DashboardSummary>('/api/analytics/dashboard'),
     retry: 1,
   });
 
