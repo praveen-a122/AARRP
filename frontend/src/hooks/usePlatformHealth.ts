@@ -50,7 +50,7 @@ export const usePlatformHealth = () => {
         return [
           { id: 'api_fastapi', name: 'FastAPI REST Core Engine', category: 'core', status: 'operational', latencyMs: 24, lastChecked: 'Just now', details: { version: '2.0.0-rc1', workers: 4 } },
           { id: 'db_pg', name: 'PostgreSQL / Supabase Storage', category: 'database', status: 'operational', latencyMs: 12, lastChecked: 'Just now', details: { poolSize: 20, activeConns: 8 } },
-          { id: 'ai_groq', name: 'AI Scaffolding Engine (Groq Llama-3)', category: 'ai', status: 'operational', latencyMs: 410, lastChecked: 'Just now', details: { model: 'llama3-70b-8192', tps: 112 } },
+          { id: 'ai_groq', name: 'AI Scaffolding Engine (Groq Llama-3)', category: 'ai', status: 'operational', latencyMs: 410, lastChecked: 'Just now', details: { model: 'llama-3.3-70b-versatile', tps: 112 } },
           { id: 'pipe_telem', name: 'Telemetry Ingestion Pipeline', category: 'pipeline', status: 'operational', latencyMs: 18, lastChecked: 'Just now', details: { bufferSize: '142 events', throughput: '45/sec' } },
           { id: 'pipe_analy', name: 'Research Analytics Aggregator', category: 'pipeline', status: 'operational', latencyMs: 35, lastChecked: 'Just now', details: { lastRollup: '2m ago' } },
           { id: 'work_bg', name: 'Background Workers & Async Queue', category: 'workers', status: 'degraded', latencyMs: 180, lastChecked: 'Just now', message: 'High job depth during dataset generation', details: { pendingJobs: 14, workers: 2 } },

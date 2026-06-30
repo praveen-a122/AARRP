@@ -103,7 +103,7 @@ export const useSystemSettings = () => {
           maxSessionsPerUser: 3,
           telemetryRetentionDays: 365,
           aiTimeoutSec: 15,
-          defaultGroqModel: 'llama3-70b-8192',
+          defaultGroqModel: 'llama-3.3-70b-versatile',
           enableAutosave: true,
           autosaveIntervalSec: 10,
         } as SystemConfigState;
@@ -140,7 +140,7 @@ export const useSystemSettings = () => {
       maxSessionsPerUser: 3,
       telemetryRetentionDays: 365,
       aiTimeoutSec: 15,
-      defaultGroqModel: 'llama3-70b-8192',
+      defaultGroqModel: 'llama-3.3-70b-versatile',
       enableAutosave: true,
       autosaveIntervalSec: 10,
     } as SystemConfigState,

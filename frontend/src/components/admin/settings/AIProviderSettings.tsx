@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/Input';
 
 export const AIProviderSettings: React.FC = () => {
   const [apiKey, setApiKey] = useState('gsk_************************************');
-  const [model, setModel] = useState('llama3-70b-8192');
+  const [model, setModel] = useState('llama-3.3-70b-versatile');
   const [maxTokens, setMaxTokens] = useState(512);
 
   return (
@@ -42,8 +42,8 @@ export const AIProviderSettings: React.FC = () => {
             onChange={(e) => setModel(e.target.value)}
             className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono"
           >
-            <option value="llama3-70b-8192">Llama 3 70B (High Reasoning Quality)</option>
-            <option value="llama3-8b-8192">Llama 3 8B (Ultra Fast Latency)</option>
+            <option value="llama-3.3-70b-versatile">Llama 3.3 70B (High Reasoning Quality)</option>
+            <option value="llama-3.1-8b-instant">Llama 3.1 8B (Ultra Fast Latency)</option>
             <option value="mixtral-8x7b-32768">Mixtral 8x7B (Large Context)</option>
           </select>
         </div>
