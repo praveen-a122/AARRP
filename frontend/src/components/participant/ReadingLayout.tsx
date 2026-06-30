@@ -176,8 +176,8 @@ const ReadingLayoutInner: React.FC<ReadingLayoutProps> = ({ participantCode, ini
       />
 
       {/* Sticky Top Banner for Reading with Cursor */}
-      <div className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-indigo-500/40 px-4 sm:px-8 py-3 shadow-xl flex items-center justify-center">
-        <div className="max-w-4xl w-full flex items-center gap-3 text-xs sm:text-sm text-indigo-200">
+      <div className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-orange-500/40 px-4 sm:px-8 py-3 shadow-xl flex items-center justify-center">
+        <div className="max-w-4xl w-full flex items-center gap-3 text-xs sm:text-sm text-orange-200">
           <span className="text-base animate-pulse">🖱️</span>
           <div>
             <strong className="text-white font-semibold">Important Reading Rule:</strong> Please track words with your mouse cursor across the screen as you read so our background adapter can accurately monitor your reading flow!
@@ -215,7 +215,7 @@ const ReadingLayoutInner: React.FC<ReadingLayoutProps> = ({ participantCode, ini
         </div>
       </main>
       {/* Fixed Bottom Status Panel matching v1 */}
-      <div id="status-panel" className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t-2 border-indigo-500 px-6 py-3.5 flex flex-wrap items-center justify-between gap-6 z-40 shadow-2xl">
+      <div id="status-panel" className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t-2 border-orange-500 px-6 py-3.5 flex flex-wrap items-center justify-between gap-6 z-40 shadow-2xl">
         <div className="flex items-center gap-6 sm:gap-10">
           <div className="flex flex-col">
             <span className="text-[10px] uppercase font-mono tracking-wider text-slate-400">Current Paragraph</span>

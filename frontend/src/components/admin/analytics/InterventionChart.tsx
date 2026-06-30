@@ -47,7 +47,7 @@ export const InterventionChart: React.FC<InterventionChartProps> = ({ items }) =
 
               <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800 p-0.5">
                 <div
-                  className="h-full bg-gradient-to-r from-primary to-emerald-500 rounded-full transition-all duration-500"
+                  className="h-full bg-gradient-to-r from-primary to-yellow-500 rounded-full transition-all duration-500"
                   style={{ width: `${widthPct}%` }}
                 />
               </div>

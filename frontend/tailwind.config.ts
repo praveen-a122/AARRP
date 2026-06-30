@@ -14,13 +14,13 @@ const config: Config = {
         surface: "#111827",
         surfaceCard: "rgba(30, 41, 59, 0.7)",
         primary: {
-          DEFAULT: "#0d9488",
-          hover: "#0f766e",
-          light: "#2dd4bf",
+          DEFAULT: "#f97316",
+          hover: "#ea580c",
+          light: "#fdba74",
         },
         accent: {
-          DEFAULT: "#10b981",
-          hover: "#059669",
+          DEFAULT: "#eab308",
+          hover: "#ca8a04",
         },
         success: "#10b981",
         warning: "#f59e0b",

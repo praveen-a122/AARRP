@@ -50,14 +50,14 @@ export const VerticalParagraphCard: React.FC<VerticalParagraphCardProps> = ({
       id={paragraph.id}
       className={`reading-para relative p-6 sm:p-8 rounded-2xl transition-all duration-300 border mb-8 ${
         isActive
-          ? 'bg-slate-900/95 border-indigo-500 shadow-2xl shadow-indigo-500/10 border-l-4 border-l-indigo-500'
+          ? 'bg-slate-900/95 border-orange-500 shadow-2xl shadow-orange-500/10 border-l-4 border-l-orange-500'
           : 'bg-slate-900/60 border-slate-800/80 shadow-md hover:border-slate-700'
       }`}
     >
       {/* Paragraph Metadata Header */}
       <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800/60 text-xs font-mono text-slate-500">
         <div className="flex items-center gap-2">
-          <span className={`font-bold ${isActive ? 'text-indigo-400' : 'text-slate-400'}`}>
+          <span className={`font-bold ${isActive ? 'text-orange-400' : 'text-slate-400'}`}>
             Paragraph #{index + 1}
           </span>
           <span>of {totalCount}</span>
@@ -72,13 +72,13 @@ export const VerticalParagraphCard: React.FC<VerticalParagraphCardProps> = ({
 
       {/* AI Intervention Banner (Dynamic Scaffolding) */}
       {intervention && (
-        <div className="mt-6 p-5 rounded-xl bg-indigo-950/40 border border-indigo-500/40 border-l-4 border-l-indigo-500 animate-fade-in space-y-3">
+        <div className="mt-6 p-5 rounded-xl bg-orange-950/40 border border-orange-500/40 border-l-4 border-l-orange-500 animate-fade-in space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold font-mono tracking-wider text-indigo-400 uppercase flex items-center gap-1.5">
+            <span className="text-xs font-bold font-mono tracking-wider text-orange-400 uppercase flex items-center gap-1.5">
               <span>🤖</span>
               {labelMapping[intervention.arm] || 'AI COGNITIVE SCAFFOLDING'}
             </span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-orange-500/20 text-orange-300">
               Triggered by: {intervention.struggle_type.replace('_', ' ')}
             </span>
           </div>
@@ -136,7 +136,7 @@ export const VerticalParagraphCard: React.FC<VerticalParagraphCardProps> = ({
                   onClick={() => onDiffChange(val)}
                   className={`py-2 rounded-lg text-sm font-bold border transition-all ${
                     diffRating === val
-                      ? 'bg-indigo-600 border-indigo-400 text-white shadow-lg shadow-indigo-600/30'
+                      ? 'bg-orange-600 border-orange-400 text-white shadow-lg shadow-orange-600/30'
                       : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-white'
                   }`}
                 >
@@ -165,13 +165,13 @@ export const VerticalParagraphCard: React.FC<VerticalParagraphCardProps> = ({
                     onClick={() => onQuizChange(optIdx)}
                     className={`w-full text-left p-3 rounded-lg border transition-all flex items-center gap-3 text-sm ${
                       isSelected
-                        ? 'bg-indigo-950/60 border-indigo-500 text-white font-medium ring-1 ring-indigo-500/50'
+                        ? 'bg-orange-950/60 border-orange-500 text-white font-medium ring-1 ring-orange-500/50'
                         : 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-900 hover:border-slate-700'
                     }`}
                   >
                     <span
                       className={`w-5 h-5 rounded-full border flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                        isSelected ? 'bg-indigo-600 border-indigo-400 text-white' : 'border-slate-700 text-slate-500'
+                        isSelected ? 'bg-orange-600 border-orange-400 text-white' : 'border-slate-700 text-slate-500'
                       }`}
                     >
                       {String.fromCharCode(65 + optIdx)}

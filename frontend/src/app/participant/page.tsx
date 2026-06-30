@@ -94,7 +94,7 @@ export default function ParticipantPortalPage() {
         </div>
 
         <Card className="border-slate-800 bg-slate-900/90 backdrop-blur-xl shadow-2xl relative overflow-hidden p-6 sm:p-8 space-y-6">
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-teal-500 via-cyan-500 to-emerald-500" />
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500" />
 
           <form onSubmit={handleRegister} className="space-y-5 font-sans">
             {/* Full Name */}
