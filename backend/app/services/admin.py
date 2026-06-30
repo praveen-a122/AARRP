@@ -138,3 +138,25 @@ async def login_admin(req: schemas.AdministratorLogin, db: AsyncSession) -> sche
         token_type="bearer",
         admin=admin_resp
     )
+
+
+async def reset_all_participant_data(db: AsyncSession):
+    from sqlalchemy import text
+    try:
+        await db.execute(text("TRUNCATE TABLE telemetry_events, quiz_responses, reading_events, cursor_events, ai_interventions, ai_feedback, sessions, participants CASCADE;"))
+    except Exception:
+        await db.execute(text("DELETE FROM telemetry_events;"))
+        await db.execute(text("DELETE FROM quiz_responses;"))
+        await db.execute(text("DELETE FROM reading_events;"))
+        await db.execute(text("DELETE FROM cursor_events;"))
+        await db.execute(text("DELETE FROM ai_interventions;"))
+        await db.execute(text("DELETE FROM ai_feedback;"))
+        await db.execute(text("DELETE FROM sessions;"))
+        await db.execute(text("DELETE FROM participants;"))
+    try:
+        await db.execute(text("ALTER SEQUENCE participant_id_seq RESTART WITH 1;"))
+    except Exception:
+        pass
+    await db.commit()
+    return {"status": "success", "message": "All participant data wiped and sequence reset to P01"}
+

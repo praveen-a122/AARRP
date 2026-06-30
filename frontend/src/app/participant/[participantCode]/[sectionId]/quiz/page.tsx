@@ -28,7 +28,7 @@ export default function ParticipantQuizPage({ params }: ParticipantQuizPageProps
 
   return (
     <QuizRuntime
-      sessionId={`sess_${params.participantCode}`}
+      sessionId={params.participantCode}
       sectionId={params.sectionId}
       onComplete={handleComplete}
     />

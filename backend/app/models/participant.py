@@ -15,6 +15,7 @@ class Participant(Base):
     demographics = Column(Text, nullable=True)  # JSON string: {name, age, gender, branch, region, language}
     status = Column(String, nullable=False, default="enrolled")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    export_json = Column(Text, nullable=True)  # Full JSON export stored in Supabase
     
     sessions = relationship("Session", back_populates="participant")
 

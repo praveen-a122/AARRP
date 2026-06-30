@@ -114,7 +114,7 @@ const ReadingLayoutInner: React.FC<ReadingLayoutProps> = ({ participantCode, ini
     try {
       const sessionExportData = {
         participant_identifier: participantCode,
-        session_id: `sess_${participantCode}`,
+        session_id: `${participantCode}`,
         completed_at: new Date().toISOString(),
         total_elapsed_seconds: elapsedSeconds,
         difficulty_ratings: diffRatings,
@@ -175,15 +175,18 @@ const ReadingLayoutInner: React.FC<ReadingLayoutProps> = ({ participantCode, ini
         }}
       />
 
-      {/* Main Vertical Scrolling Content Area */}
-      <main className="flex-1 px-4 sm:px-8 py-8 max-w-4xl mx-auto w-full">
-        {/* Important rule guidance banner matching v1 */}
-        <div className="mb-8 p-4 rounded-xl bg-indigo-950/40 border border-indigo-500/30 border-l-4 border-l-indigo-500 flex items-start gap-3 text-sm text-indigo-200">
-          <span className="text-lg">💡</span>
+      {/* Sticky Top Banner for Reading with Cursor */}
+      <div className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-indigo-500/40 px-4 sm:px-8 py-3 shadow-xl flex items-center justify-center">
+        <div className="max-w-4xl w-full flex items-center gap-3 text-xs sm:text-sm text-indigo-200">
+          <span className="text-base animate-pulse">🖱️</span>
           <div>
-            <strong className="text-white">Important Reading Rule:</strong> Please use your mouse cursor as a visual pointer/guide to track words across the screen as you read. This lets our background adapter accurately monitor your reading flow!
+            <strong className="text-white font-semibold">Important Reading Rule:</strong> Please track words with your mouse cursor across the screen as you read so our background adapter can accurately monitor your reading flow!
           </div>
         </div>
+      </div>
+
+      {/* Main Vertical Scrolling Content Area */}
+      <main className="flex-1 px-4 sm:px-8 py-8 max-w-4xl mx-auto w-full">
 
         <div className="space-y-4">
           {paragraphs.map((p, i) => (
@@ -267,7 +270,7 @@ const ReadingLayoutInner: React.FC<ReadingLayoutProps> = ({ participantCode, ini
         onReturnHome={() => router.push('/participant')}
       />
 
-      <AIInterventionManager participantId={participantCode} sessionId={`sess_${participantCode}`} />
+      <AIInterventionManager participantId={participantCode} sessionId={`${participantCode}`} />
     </div>
   );
 };

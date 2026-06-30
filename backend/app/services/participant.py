@@ -31,7 +31,7 @@ async def register_participant(req: schemas.ParticipantRegisterRequest, db: Asyn
 
     db.add(new_participant)
     await db.flush()  # get new_participant.id inside atomic transaction
-    formatted_code = str(custom_code) if custom_code else f"P{new_participant.id:03d}"
+    formatted_code = str(custom_code) if custom_code else f"P{new_participant.id:02d}"
     new_participant.participant_code = formatted_code
     new_participant.participant_id = formatted_code
 
@@ -91,7 +91,7 @@ async def get_participant_status(participant_id: str, db: AsyncSession) -> schem
         status=participant.status,
         created_at=str(participant.created_at or datetime.now(timezone.utc)),
         experiment_id=exp_id,
-        session_id=f"sess_{participant.participant_code or participant.id}",
+        session_id=str(participant.participant_code or participant.id),
         last_section_id="sec_1",
         elapsed_seconds=session.duration_ms // 1000 if session.duration_ms else 0
     )
@@ -109,6 +109,8 @@ async def complete_participant_session(participant_id: str, db: AsyncSession, pa
     now = datetime.now(timezone.utc)
     if participant:
         participant.status = "completed"
+        if payload:
+            participant.export_json = json.dumps(payload, indent=2)
         stmt_s = select(Session).where(Session.participant_id == participant.id).order_by(Session.id.desc()).limit(1)
         res_s = await db.execute(stmt_s)
         session = res_s.scalar_one_or_none()

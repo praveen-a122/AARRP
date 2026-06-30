@@ -121,19 +121,42 @@ export const ParticipantTable: React.FC<ParticipantTableProps> = ({ participants
     },
   ];
 
+  const handleResetData = async () => {
+    if (confirm("Are you sure you want to delete all participant records and reset numbering to start from P01?")) {
+      try {
+        await apiClient.post('/api/admin/reset-data');
+        alert("All participant records wiped and numbering reset to P01.");
+        window.location.reload();
+      } catch (err) {
+        alert(`Reset failed: ${err}`);
+      }
+    }
+  };
+
   return (
     <Card className="p-6 bg-slate-900/90 border-slate-800 shadow-xl space-y-4 animate-fade-in">
-      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+      <div className="flex items-center justify-between border-b border-slate-800 pb-3 flex-wrap gap-4">
         <div>
           <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
             Participant Telemetry Logs
           </h3>
           <p className="text-xs text-slate-400">Granular session metrics recorded from active reading runtimes</p>
         </div>
-        <span className="text-xs font-mono text-slate-400">Total Records: {participants.length}</span>
+        <div className="flex items-center gap-4">
+          <span className="text-xs font-mono text-slate-400">Total Records: {participants.length}</span>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleResetData}
+            className="bg-red-600/80 hover:bg-red-600 text-white text-xs px-3 py-1.5 h-auto font-mono shadow-lg shadow-red-600/20"
+          >
+            🗑️ Wipe All & Reset to P01
+          </Button>
+        </div>
       </div>
 
       <DataTable data={participants} columns={columns} />
     </Card>
   );
 };
+

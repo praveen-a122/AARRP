@@ -42,3 +42,8 @@ async def update_administrator(req: schemas.AdministratorUpdate, db: AsyncSessio
 @router.post("/login", response_model=schemas.AdminLoginResponse)
 async def login_administrator(req: schemas.AdministratorLogin, db: AsyncSession = Depends(get_db)):
     return await service.login_admin(req, db)
+
+@router.post("/reset-data")
+async def reset_data(db: AsyncSession = Depends(get_db)):
+    return await service.reset_all_participant_data(db)
+

@@ -248,7 +248,7 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
           },
         };
         return {
-          status: { participant_id: participantCode, experiment_id: 'exp_runtime_1', session_id: `sess_${participantCode}` },
+          status: { participant_id: participantCode, experiment_id: 'exp_runtime_1', session_id: `${participantCode}` },
           experiment: mockExp,
         };
       }
@@ -294,7 +294,7 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
         event_type: eventType,
         participant_id: participantCode,
         participant_name: pName,
-        session_id: `sess_${participantCode}`,
+        session_id: `${participantCode}`,
         section_id: 'sec_1',
         paragraph_id: pid || undefined,
         dwell_time_s: stats ? Math.round(stats.dwellMs / 1000) : 0,
@@ -637,7 +637,7 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
         event_type: 'session_complete',
         participant_id: participantCode,
         participant_name: pName,
-        session_id: `sess_${participantCode}`,
+        session_id: `${participantCode}`,
         section_id: 'sec_1',
         paragraph_id: p.id,
         dwell_time_s: Math.round((paraStatsRef.current[p.id]?.dwellMs || 0) / 1000),
@@ -667,7 +667,17 @@ export const useReadingSession = (participantCode: string, initialSectionId?: st
 
     // Also mark participant as completed
     try {
-      await apiClient.post(`/api/participant/complete/${participantCode}`);
+      const sessionExportData = {
+        participant_identifier: participantCode,
+        session_id: `${participantCode}`,
+        completed_at: new Date().toISOString(),
+        total_elapsed_seconds: elapsedSeconds,
+        difficulty_ratings: diffRatings,
+        quiz_answers: quizAnswers,
+        paragraph_telemetry: paraStatsRef.current,
+        ai_interventions_log: interventionLogRef.current,
+      };
+      await apiClient.post(`/api/participant/complete/${participantCode}`, sessionExportData);
     } catch (err) {
       console.warn('[Supabase Sync] Participant completion call failed:', err);
     }
